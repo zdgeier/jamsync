@@ -18,7 +18,6 @@ import (
 	"github.com/zdgeier/jamsync/internal/jamenv"
 )
 
-// TODO: fix error output in this file
 var redirectUrl = "http://localhost:8082/callback"
 
 // AuthorizeUser implements the PKCE OAuth2 flow.

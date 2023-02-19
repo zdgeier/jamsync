@@ -12,6 +12,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/fsnotify/fsnotify"
@@ -201,6 +202,8 @@ func main() {
 				if event.Op == fsnotify.Chmod {
 					continue
 				}
+
+				time.Sleep(time.Millisecond * 500)
 
 				path := event.Name
 

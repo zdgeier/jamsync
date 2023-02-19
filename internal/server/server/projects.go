@@ -42,20 +42,6 @@ func (s JamsyncServer) ListUserProjects(ctx context.Context, in *pb.ListUserProj
 	return &pb.ListUserProjectsResponse{Projects: projectsPb}, nil
 }
 
-func (s JamsyncServer) ListProjects(ctx context.Context, in *pb.ListProjectsRequest) (*pb.ListProjectsResponse, error) {
-	projects, err := s.db.ListProjects()
-	if err != nil {
-		return nil, err
-	}
-
-	projectsPb := make([]*pb.ListProjectsResponse_Project, len(projects))
-	for i := range projectsPb {
-		projectsPb[i] = &pb.ListProjectsResponse_Project{Name: projects[i].Name, Id: projects[i].Id}
-	}
-
-	return &pb.ListProjectsResponse{Projects: projectsPb}, nil
-}
-
 func (s JamsyncServer) GetProjectConfig(ctx context.Context, in *pb.GetProjectConfigRequest) (*pb.ProjectConfig, error) {
 	userId, err := serverauth.ParseIdFromCtx(ctx)
 	if err != nil {

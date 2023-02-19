@@ -66,13 +66,7 @@ func New() (closer func(), err error) {
 	reflection.Register(server)
 	pb.RegisterJamsyncAPIServer(server, jamsyncServer)
 
-	var addr string
-	if jamenv.Env() == jamenv.Prod {
-		addr = "0.0.0.0:443"
-	} else {
-		addr = "0.0.0.0:14357"
-	}
-	tcplis, err := net.Listen("tcp", addr)
+	tcplis, err := net.Listen("tcp", "0.0.0.0:14357")
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +124,7 @@ func Connect(accessToken *oauth2.Token) (client pb.JamsyncAPIClient, closer func
 	addr := "0.0.0.0:14357"
 
 	if jamenv.Env() == jamenv.Prod {
-		addr = "3.23.17.54:14357"
+		addr = "prod.jamsync.dev:14357"
 	}
 	conn, err := grpc.Dial(addr, opts...)
 	if err != nil {

@@ -13,7 +13,6 @@ service JamsyncAPI {
     rpc ChangeStream(ChangeStreamRequest) returns (stream ChangeStreamMessage);
 
     rpc AddProject(AddProjectRequest) returns (AddProjectResponse);
-    rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
     rpc ListUserProjects(ListUserProjectsRequest) returns (ListUserProjectsResponse);
     rpc ListCommittedChanges(ListCommittedChangesRequest) returns (ListCommittedChangesResponse);
     rpc GetProjectConfig(GetProjectConfigRequest) returns (ProjectConfig);
@@ -132,15 +131,6 @@ message AddProjectResponse {
 
 message ListUserProjectsRequest {}
 message ListUserProjectsResponse {
-    message Project {
-        string name = 1;
-        uint64 id = 2;
-    }
-    repeated Project projects = 1;
-}
-
-message ListProjectsRequest {}
-message ListProjectsResponse {
     message Project {
         string name = 1;
         uint64 id = 2;

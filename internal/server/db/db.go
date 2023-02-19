@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 )
 
 type JamsyncDb struct {
@@ -12,7 +13,11 @@ type JamsyncDb struct {
 
 func New() (jamsyncDB JamsyncDb) {
 	var db *sql.DB
-	conn, err := sql.Open("sqlite3", "./jamsync.db")
+	err := os.MkdirAll("./jb", os.ModePerm)
+	if err != nil {
+		panic(err)
+	}
+	conn, err := sql.Open("sqlite3", "./jb/jamsync.db")
 	if err != nil {
 		panic(err)
 	}
@@ -77,25 +82,6 @@ func (j JamsyncDb) GetProjectId(projectName string, owner string) (uint64, error
 
 func (j JamsyncDb) ListUserProjects(owner string) ([]Project, error) {
 	rows, err := j.db.Query("SELECT rowid, name FROM projects WHERE owner = ?", owner)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	data := make([]Project, 0)
-	for rows.Next() {
-		u := Project{}
-		err = rows.Scan(&u.Id, &u.Name)
-		if err != nil {
-			return nil, err
-		}
-		data = append(data, u)
-	}
-	return data, err
-}
-
-func (j JamsyncDb) ListProjects() ([]Project, error) {
-	rows, err := j.db.Query("SELECT rowid, name FROM projects WHERE owner = ?", "google-oauth2|110234936712136355441")
 	if err != nil {
 		return nil, err
 	}

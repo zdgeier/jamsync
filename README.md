@@ -5,7 +5,7 @@ This repository is a temporary place for Jamsync code until we're able to bootst
 Happy syncin'!
 
 ## About
-Jamsync is an open-source version control system that enables software engineers to develop and deploy faster. We're currently under development but feel free to preview the system on this site. The AGPL-licensed source and client binaries are available to download here.
+Jamsync is an open-source version control system that enables software engineers to develop and deploy faster. We're currently under development.
 
 ## Algorithm
 The idea behind Jamsync is the same as rsync. In fact, Jamsync uses jbreiding/rsync-go for now under the hood. If you havent read the rsync algorithm paper, it's highly recommended -- it's very approachable for anyone with a computer science background and has some great information.

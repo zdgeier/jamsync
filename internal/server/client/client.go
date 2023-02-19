@@ -305,6 +305,27 @@ func (c *Client) DiffRemoteToLocal(ctx context.Context, fileMetadata *pb.FileMet
 	}, err
 }
 
+func pbOperationToRsync(op *pb.Operation) rsync.Operation {
+	var opType rsync.OpType
+	switch op.Type {
+	case pb.Operation_OpBlock:
+		opType = rsync.OpBlock
+	case pb.Operation_OpData:
+		opType = rsync.OpData
+	case pb.Operation_OpHash:
+		opType = rsync.OpHash
+	case pb.Operation_OpBlockRange:
+		opType = rsync.OpBlockRange
+	}
+
+	return rsync.Operation{
+		Type:          opType,
+		BlockIndex:    op.GetBlockIndex(),
+		BlockIndexEnd: op.GetBlockIndexEnd(),
+		Data:          op.GetData(),
+	}
+}
+
 func (c *Client) DownloadFile(ctx context.Context, filePath string, localReader io.ReadSeeker, localWriter io.Writer) error {
 	rs := rsync.RSync{UniqueHasher: xxhash.New()}
 	blockHashes := make([]*pb.BlockHash, 0)
@@ -342,7 +363,7 @@ func (c *Client) DownloadFile(ctx context.Context, filePath string, localReader 
 			if err != nil {
 				panic(err)
 			}
-			ops <- rsync.PbOperationToRsync(in)
+			ops <- pbOperationToRsync(in)
 			numOps += 1
 		}
 		close(ops)

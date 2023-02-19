@@ -102,7 +102,6 @@ func New(auth *authenticator.Authenticator) *gin.Engine {
 	router.GET("/callback", callback.Handler(auth))
 	router.GET("/logout", logout.Handler)
 
-	router.GET("/api/projects", api.ProjectsHandler())
 	router.GET("/api/userprojects", api.UserProjectsHandler())
 	router.GET("/api/committedchanges/:projectName", api.ListCommittedChanges())
 	router.GET("/api/ws/committedchanges/:projectName", api.CommitChangeWSHandler())

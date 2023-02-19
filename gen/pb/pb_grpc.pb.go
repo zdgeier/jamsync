@@ -29,7 +29,6 @@ type JamsyncAPIClient interface {
 	ReadFile(ctx context.Context, in *ReadFileRequest, opts ...grpc.CallOption) (JamsyncAPI_ReadFileClient, error)
 	ChangeStream(ctx context.Context, in *ChangeStreamRequest, opts ...grpc.CallOption) (JamsyncAPI_ChangeStreamClient, error)
 	AddProject(ctx context.Context, in *AddProjectRequest, opts ...grpc.CallOption) (*AddProjectResponse, error)
-	ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error)
 	ListUserProjects(ctx context.Context, in *ListUserProjectsRequest, opts ...grpc.CallOption) (*ListUserProjectsResponse, error)
 	ListCommittedChanges(ctx context.Context, in *ListCommittedChangesRequest, opts ...grpc.CallOption) (*ListCommittedChangesResponse, error)
 	GetProjectConfig(ctx context.Context, in *GetProjectConfigRequest, opts ...grpc.CallOption) (*ProjectConfig, error)
@@ -180,15 +179,6 @@ func (c *jamsyncAPIClient) AddProject(ctx context.Context, in *AddProjectRequest
 	return out, nil
 }
 
-func (c *jamsyncAPIClient) ListProjects(ctx context.Context, in *ListProjectsRequest, opts ...grpc.CallOption) (*ListProjectsResponse, error) {
-	out := new(ListProjectsResponse)
-	err := c.cc.Invoke(ctx, "/pb.JamsyncAPI/ListProjects", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *jamsyncAPIClient) ListUserProjects(ctx context.Context, in *ListUserProjectsRequest, opts ...grpc.CallOption) (*ListUserProjectsResponse, error) {
 	out := new(ListUserProjectsResponse)
 	err := c.cc.Invoke(ctx, "/pb.JamsyncAPI/ListUserProjects", in, out, opts...)
@@ -254,7 +244,6 @@ type JamsyncAPIServer interface {
 	ReadFile(*ReadFileRequest, JamsyncAPI_ReadFileServer) error
 	ChangeStream(*ChangeStreamRequest, JamsyncAPI_ChangeStreamServer) error
 	AddProject(context.Context, *AddProjectRequest) (*AddProjectResponse, error)
-	ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error)
 	ListUserProjects(context.Context, *ListUserProjectsRequest) (*ListUserProjectsResponse, error)
 	ListCommittedChanges(context.Context, *ListCommittedChangesRequest) (*ListCommittedChangesResponse, error)
 	GetProjectConfig(context.Context, *GetProjectConfigRequest) (*ProjectConfig, error)
@@ -288,9 +277,6 @@ func (UnimplementedJamsyncAPIServer) ChangeStream(*ChangeStreamRequest, JamsyncA
 }
 func (UnimplementedJamsyncAPIServer) AddProject(context.Context, *AddProjectRequest) (*AddProjectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddProject not implemented")
-}
-func (UnimplementedJamsyncAPIServer) ListProjects(context.Context, *ListProjectsRequest) (*ListProjectsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListProjects not implemented")
 }
 func (UnimplementedJamsyncAPIServer) ListUserProjects(context.Context, *ListUserProjectsRequest) (*ListUserProjectsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListUserProjects not implemented")
@@ -463,24 +449,6 @@ func _JamsyncAPI_AddProject_Handler(srv interface{}, ctx context.Context, dec fu
 	return interceptor(ctx, in, info, handler)
 }
 
-func _JamsyncAPI_ListProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListProjectsRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(JamsyncAPIServer).ListProjects(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/pb.JamsyncAPI/ListProjects",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(JamsyncAPIServer).ListProjects(ctx, req.(*ListProjectsRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _JamsyncAPI_ListUserProjects_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListUserProjectsRequest)
 	if err := dec(in); err != nil {
@@ -611,10 +579,6 @@ var JamsyncAPI_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AddProject",
 			Handler:    _JamsyncAPI_AddProject_Handler,
-		},
-		{
-			MethodName: "ListProjects",
-			Handler:    _JamsyncAPI_ListProjects_Handler,
 		},
 		{
 			MethodName: "ListUserProjects",

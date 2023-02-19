@@ -16,25 +16,6 @@ import (
 	"golang.org/x/oauth2"
 )
 
-func ProjectsHandler() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		accessToken := sessions.Default(ctx).Get("access_token").(string)
-		tempClient, closer, err := server.Connect(&oauth2.Token{AccessToken: accessToken})
-		if err != nil {
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-		defer closer()
-
-		resp, err := tempClient.ListProjects(ctx, &pb.ListProjectsRequest{})
-		if err != nil {
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-		ctx.JSON(200, resp)
-	}
-}
-
 func UserProjectsHandler() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		accessToken := sessions.Default(ctx).Get("access_token").(string)

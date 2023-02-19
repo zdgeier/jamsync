@@ -122,6 +122,27 @@ func (s JamsyncServer) ReadBlockHashes(ctx context.Context, in *pb.ReadBlockHash
 	}, err
 }
 
+func pbOperationToRsync(op *pb.Operation) rsync.Operation {
+	var opType rsync.OpType
+	switch op.Type {
+	case pb.Operation_OpBlock:
+		opType = rsync.OpBlock
+	case pb.Operation_OpData:
+		opType = rsync.OpData
+	case pb.Operation_OpHash:
+		opType = rsync.OpHash
+	case pb.Operation_OpBlockRange:
+		opType = rsync.OpBlockRange
+	}
+
+	return rsync.Operation{
+		Type:          opType,
+		BlockIndex:    op.GetBlockIndex(),
+		BlockIndexEnd: op.GetBlockIndexEnd(),
+		Data:          op.GetData(),
+	}
+}
+
 func (s JamsyncServer) regenFile(projectId uint64, userId string, pathHash uint64, changeId uint64) (*bytes.Reader, error) {
 	rs := rsync.RSync{UniqueHasher: xxhash.New()}
 	targetBuffer := bytes.NewBuffer([]byte{})
@@ -146,7 +167,7 @@ func (s JamsyncServer) regenFile(projectId uint64, userId string, pathHash uint6
 			if err != nil {
 				panic(err)
 			}
-			ops = append(ops, rsync.PbOperationToRsync(op))
+			ops = append(ops, pbOperationToRsync(op))
 		}
 		err = rs.ApplyDeltaBatch(result, bytes.NewReader(targetBuffer.Bytes()), ops)
 		if err != nil {
@@ -157,6 +178,18 @@ func (s JamsyncServer) regenFile(projectId uint64, userId string, pathHash uint6
 		result.Reset()
 	}
 	return bytes.NewReader(targetBuffer.Bytes()), nil
+}
+
+func pbBlockHashesToRsync(pbBlockHashes []*pb.BlockHash) []rsync.BlockHash {
+	blockHashes := make([]rsync.BlockHash, 0)
+	for _, pbBlockHash := range pbBlockHashes {
+		blockHashes = append(blockHashes, rsync.BlockHash{
+			Index:      pbBlockHash.GetIndex(),
+			StrongHash: pbBlockHash.GetStrongHash(),
+			WeakHash:   pbBlockHash.GetWeakHash(),
+		})
+	}
+	return blockHashes
 }
 
 func (s JamsyncServer) ReadFile(in *pb.ReadFileRequest, srv pb.JamsyncAPI_ReadFileServer) error {
@@ -178,7 +211,7 @@ func (s JamsyncServer) ReadFile(in *pb.ReadFileRequest, srv pb.JamsyncAPI_ReadFi
 	go func() {
 		var blockCt, blockRangeCt, dataCt, bytes int
 		defer close(opsOut)
-		err := rsDelta.CreateDelta(sourceBuffer, rsync.PbBlockHashesToRsync(in.GetBlockHashes()), func(op rsync.Operation) error {
+		err := rsDelta.CreateDelta(sourceBuffer, pbBlockHashesToRsync(in.GetBlockHashes()), func(op rsync.Operation) error {
 			switch op.Type {
 			case rsync.OpBlockRange:
 				blockRangeCt++
