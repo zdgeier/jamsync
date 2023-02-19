@@ -39,6 +39,7 @@ func main() {
 
 	_, err = apiClient.Ping(context.Background(), &pb.PingRequest{})
 	if err != nil {
+		fmt.Println(err)
 		accessToken, err := clientauth.ReauthConfig()
 		if err != nil {
 			log.Panic(err)
