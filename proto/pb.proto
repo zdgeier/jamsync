@@ -188,4 +188,6 @@ message ListCommittedChangesResponse {
 }
 
 message PingRequest {}
-message PingResponse {}
+message PingResponse {
+    string username = 1;
+}

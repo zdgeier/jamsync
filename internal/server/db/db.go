@@ -103,3 +103,14 @@ func (j JamsyncDb) CreateUser(username, userId string) error {
 	_, err := j.db.Exec("INSERT OR IGNORE INTO users(username, user_id) VALUES (?, ?)", username, userId)
 	return err
 }
+
+func (j JamsyncDb) Username(userId string) (string, error) {
+	row := j.db.QueryRow("SELECT username FROM users WHERE user_id = ?", userId)
+	if row.Err() != nil {
+		return "", row.Err()
+	}
+
+	var username string
+	err := row.Scan(&username)
+	return username, err
+}

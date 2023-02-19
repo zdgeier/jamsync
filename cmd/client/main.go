@@ -12,11 +12,11 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/cespare/xxhash"
 	"github.com/fsnotify/fsnotify"
 	"github.com/zdgeier/jamsync/gen/pb"
+	"github.com/zdgeier/jamsync/internal/jamenv"
 	jam "github.com/zdgeier/jamsync/internal/server/client"
 	"github.com/zdgeier/jamsync/internal/server/clientauth"
 	"github.com/zdgeier/jamsync/internal/server/server"
@@ -25,7 +25,15 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+var (
+	version string
+	built   string
+)
+
 func main() {
+	log.Println("version: " + version)
+	log.Println("built: " + built)
+	log.Println("env: " + jamenv.Env().String())
 	accessToken, err := clientauth.InitConfig()
 	if err != nil {
 		log.Panic(err)
@@ -38,7 +46,7 @@ func main() {
 	}
 	defer closer()
 
-	_, err = apiClient.Ping(context.Background(), &pb.PingRequest{})
+	pingRes, err := apiClient.Ping(context.Background(), &pb.PingRequest{})
 	if err != nil {
 		fmt.Println(err)
 		accessToken, err := clientauth.ReauthConfig()
@@ -52,6 +60,9 @@ func main() {
 			log.Panic(err)
 		}
 		defer closer()
+	}
+	if jamenv.Env() == jamenv.Prod {
+		log.Println("user: ", pingRes.Username)
 	}
 
 	currentPath, err := os.Getwd()
@@ -99,7 +110,7 @@ func main() {
 		client = jam.NewClient(apiClient, config.ProjectId, config.CurrentChange)
 	} else {
 		log.Println("This directory has some existing contents.")
-		log.Println("Name of new project to create for current directory: ")
+		log.Print("Name of new project to create for current directory: ")
 		var projectName string
 		fmt.Scan(&projectName)
 
@@ -203,9 +214,11 @@ func main() {
 					continue
 				}
 
-				time.Sleep(time.Millisecond * 500)
-
 				path := event.Name
+
+				if strings.HasSuffix(path, ".jamtemp") {
+					continue
+				}
 
 				if stat, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
 					log.Println(path + " deleted")
@@ -476,7 +489,6 @@ func applyFileListDiff(fileMetadataDiff *pb.FileMetadataDiff, client *jam.Client
 	ctx := context.Background()
 	for path, diff := range fileMetadataDiff.GetDiffs() {
 		if diff.GetType() != pb.FileMetadataDiff_NoOp && diff.GetFile().GetDir() {
-			log.Println("Creating ", diff.GetFile().GetDir())
 			err := os.MkdirAll(path, os.ModePerm)
 			if err != nil {
 				return err
@@ -484,60 +496,36 @@ func applyFileListDiff(fileMetadataDiff *pb.FileMetadataDiff, client *jam.Client
 		}
 	}
 
-	paths := make(chan string, len(fileMetadataDiff.GetDiffs()))
-	results := make(chan error, len(fileMetadataDiff.GetDiffs()))
-
-	worker := func(id int, paths <-chan string, results chan<- error) {
-		for path := range paths {
-			file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0755)
+	for path, diff := range fileMetadataDiff.GetDiffs() {
+		if diff.GetType() != pb.FileMetadataDiff_NoOp && !diff.GetFile().GetDir() {
+			file, err := os.OpenFile(path+".jamtemp", os.O_RDWR|os.O_CREATE, 0755)
 			if err != nil {
-				results <- err
-				return
+				log.Panic(err)
 			}
+			defer file.Close()
 
 			fileContents, err := os.ReadFile(path)
 			if err != nil {
-				results <- err
-				return
+				log.Panic(err)
 			}
 
-			log.Println("Downloading ", path)
 			err = client.DownloadFile(ctx, path, bytes.NewReader(fileContents), file)
 			if err != nil {
-				results <- err
-				return
+				log.Panic(err)
 			}
 
 			newModTime := fileMetadataDiff.GetDiffs()[path].File.GetModTime().AsTime()
 			err = os.Chtimes(path, newModTime, newModTime)
 			if err != nil {
-				results <- err
+				log.Panic(err)
 			}
 
-			results <- file.Close()
-		}
-	}
-
-	for w := 1; w <= 10; w++ {
-		go worker(w, paths, results)
-	}
-	for path, diff := range fileMetadataDiff.GetDiffs() {
-		if diff.GetType() != pb.FileMetadataDiff_NoOp && !diff.GetFile().GetDir() {
-			paths <- path
-		}
-	}
-	close(paths)
-	done := 0
-	batchesDone := 0
-	for _, diff := range fileMetadataDiff.GetDiffs() {
-		if diff.GetType() != pb.FileMetadataDiff_NoOp && !diff.GetFile().GetDir() {
-			<-results
-			done += 1
-			if done > 1000 {
-				log.Println("Done: ", batchesDone*1000)
-				batchesDone += 1
-				done = 0
+			err = os.Rename(path+".jamtemp", path)
+			if err != nil {
+				log.Panic(err)
 			}
+
+			log.Println("Downloaded ", path)
 		}
 	}
 	return nil

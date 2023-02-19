@@ -17,3 +17,6 @@ jamsync-build*
 jamsync-build.zip
 .vscode
 gen/
+
+node_modules/
+*.bundle.js

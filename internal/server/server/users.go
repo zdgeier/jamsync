@@ -21,5 +21,15 @@ func (s JamsyncServer) CreateUser(ctx context.Context, in *pb.CreateUserRequest)
 }
 
 func (s JamsyncServer) Ping(ctx context.Context, in *pb.PingRequest) (*pb.PingResponse, error) {
-	return &pb.PingResponse{}, nil
+	id, err := serverauth.ParseIdFromCtx(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	username, err := s.db.Username(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.PingResponse{Username: username}, nil
 }

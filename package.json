@@ -1,0 +1,8 @@
+{
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.5.0"
+  }
+}

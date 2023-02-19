@@ -3,7 +3,7 @@ client:
 	JAM_ENV=local go run cmd/client/main.go 
 
 web:
-	JAM_ENV=local cd cmd/web/; go run main.go
+	cd cmd/web/; JAM_ENV=local go run main.go
 
 server:
 	JAM_ENV=local go run cmd/server/main.go
@@ -11,13 +11,16 @@ server:
 # Build ================================
 
 clean:
-	rm -rf jamsync-build && rm -rf jamsync-build.zip
+	rm -rf jamsync-build && rm -rf jamsync-build.zip && rm -rf internal/server/client/jb && rm -rf jb/
 
 zipself:
-	mkdir -p ./jamsync-build/public && zip -r jamsync-build/public/jamsync-source.zip . -x .git/\*
+	git archive --format=zip --output jamsync-source.zip HEAD && mkdir -p ./jamsync-build/public && mv jamsync-source.zip ./jamsync-build/public/
 
 protos:
 	mkdir -p gen/go && protoc --proto_path=proto --go_out=gen/pb --go_opt=paths=source_relative --go-grpc_out=gen/pb --go-grpc_opt=paths=source_relative proto/*.proto
+
+buildeditor:
+	cd cmd/web/editor && ./node_modules/.bin/rollup -c rollup.config.mjs && mv editor.bundle.js ../public/
 
 movewebassets:
 	cp -R cmd/web/public jamsync-build/; cp -R cmd/web/template jamsync-build/; 
@@ -47,7 +50,17 @@ cleanbuild:
 deploy:
 	./scripts/deploy.sh
 
+build: clean zipself protos buildeditor movewebassets buildclients zipbuild uploadbuild cleanbuild deploy
+
+# Misc ================================
+
+install:
+	go mod tidy && cd cmd/web/editor/ && npm install
+
+installclient:
+	go build -ldflags "-X main.built=`date -u +.%Y%m%d.%H%M%S` -X main.version=0.0.2" -o jam cmd/client/main.go && mv jam ~/bin/jam
+
 ssh:
 	ssh -i ~/jamsynckeypair.pem ec2-user@ssh.prod.jamsync.dev
 
-build: clean zipself protos movewebassets buildclients zipbuild uploadbuild cleanbuild deploy
+
