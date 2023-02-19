@@ -1,0 +1,98 @@
+{{template "head.html" args 
+    "title" "About" 
+    "canonical" "about" 
+    "description" "Jamsync uses the rsync algorithm to track changes to large files efficiently and share changes live with other developers."
+}}
+<body>
+    {{template "header.html" args "email" .Email}}
+    <main>
+        <section class="About">
+            <div class="About-header">
+                <span class="About-headerLeft">Jamsync</span>
+                <svg id="a" width="60px" height="60px" version="1.1" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                    <g stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-miterlimit="2.8">
+                        <path d="m220.45 14.531c-23.261-1.2646-41.24 16.834-58.42 44.842-1.3476 2.1975-.64013 5.0602 1.58 6.3938 2.22 1.3339 10.692 8.9196 12.04 6.7219 8.1343-25.31 31.513-31.681 51.345-36.795 0 0-2.1438-20.924-6.5446-21.163z" color="#000000" fill="#007a0b" stroke-width="11.269"/>
+                        <g fill="#ff007f" stroke-width="11.269">
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-189.16" cy="-105.54" rx="36.007" ry="41.807"/>
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-152.84" cy="-68.797" rx="36.007" ry="41.807"/>
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-212.42" cy="-62.836" rx="36.007" ry="41.807"/>
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-116.73" cy="-6.1428" rx="36.007" ry="41.807"/>
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-230.51" cy="9.1266" rx="36.007" ry="41.807"/>
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-199.39" cy="58.236" rx="36.007" ry="41.807"/>
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-139.22" cy="47.193" rx="36.007" ry="41.807"/>
+                            <ellipse transform="matrix(-.73717 -.67571 .68316 -.73027 0 0)" cx="-175.45" cy="-4.1575" rx="36.007" ry="41.807"/>
+                        </g>
+                    </g>
+                </svg>
+            </div>
+            <h1>About</h1>
+            <p class="About-description">
+                Jamsync is an open-source version control system that enables software engineers to develop and deploy faster. We're currently under development but feel free to preview the system on this site. The AGPL-licensed source and client binaries are available to <a href="/download">download</a>.
+            </p>
+            <h2>Algorithm</h2>
+            <p class="About-description">
+                The idea behind Jamsync is the same as <a href="https://github.com/WayneD/rsync">rsync</a>. In fact, Jamsync uses <a href="https://github.com/jbreiding/rsync-go">jbreiding/rsync-go</a> for now under the hood.
+                If you havent read the <a href="https://www.andrew.cmu.edu/course/15-749/READINGS/required/cas/tridgell96.pdf">rsync algorithm</a> paper, 
+                it's highly recommended -- it's very approachable for anyone with a computer science background and has some great information.
+            </p>
+            <h3>Rsync</h3>
+            <p class="About-description">
+                Essentially, rsync allows a file on two separate computers, a sender and receiver, to be synced efficiently over a network. 
+                It does this by chopping a file into blocks and reusing existing blocks on the receiver to regenerate a file.
+                A <a href="https://en.wikipedia.org/wiki/Rolling_hash#:~:text=A%20rolling%20hash%20(also%20known,that%20moves%20through%20the%20input.">rolling hash</a> is used to scan over the file on the sender and 
+                operations are sent to the receiver to either reuse a block (if the rolling hash matches) or to use new data.
+            </p>
+            <p class="About-description">
+                More detailed steps are below:
+                <ol class="About-list">
+                    <li>Sender and receiver establish a connection</li>
+                    <li>Receiver hashes their existing blocks of a file with a rolling and strong hash and sends the hashes to the sender</li>
+                    <li>Sender receives hashes and uses the rolling hash to scan over the file
+                        <ol class="About-list">
+                            <li>If the rolling hash matches a block on the receiver, the strong hash is used to verify the integrity and an operation is sent to reuse the block</li>
+                            <li>If a block does not match a block on the receiver, an operation containing the data is sent to the receiver</li>
+                        </ol>
+                    </li>
+                    <li>Receiver receives operations in a stream to regenerate the file by either reusing existing blocks or writing new data</li>
+                </ol>
+            </p>
+            <h3>How Jamsync uses Rsync</h3>
+            <p class="About-description">
+                The main idea behind Jamsync is that we can store the operations sent by the sender to track changes to a file. This means we treat
+                rsync operations like a delta chain that we can use later to regenerate the file. The storage of deltas and their usage to regenerate a file
+                is similar to the Mercurial concept of a <a href="https://www.mercurial-scm.org/wiki/Revlog">Revlog</a>. However, the advantage of using rsync blocks is that we can  
+                efficiently store changes to, and regenerate, arbitrarily large files since these blocks can be streamed and regenerated independently.
+            </p>
+            <div>
+                <video class="About-video" controls autoplay muted loop playsinline height="300px">
+                    <source src="/public/jamsync-hello.mp4" type="video/mp4">
+               </video>
+            </div>
+            <h3>Changes and Conflicts</h3>
+            <p class="About-description">
+                A chain of changes, formed by the process above, can be used to regerate every file in a project. Branches off of the main chain can be used to prevent
+                conflicts from occuring when editing the same part of a file; however, whenever a branch is merged in, every other branch is automatically rebased on top.
+                This means that every branch will always be up-to-date. If conflicts occur during the rebase, a branch will be marked as "stale" and will need manual merging.
+            </p>
+            <h3>Limitations</h3>
+            <p class="About-description">
+                The goal is to be able to handle over 10M files and over 1TB-sized files in a single repository. We're not there yet in the current implementation (probably ~10K files with 1GB-sized files) but should be there in the next couple months.
+            </p>
+            <h3>Implementation</h3>
+            <p class="About-description">
+                Jamsync is being written from scratch in <a href="https://go.dev/">Golang</a> and uses <a href="https://github.com/mattn/go-sqlite3">mattn/go-sqlite3</a> to store projects and change information. <a href="https://grpc.io/">gRPC</a> and <a href="https://developers.google.com/protocol-buffers">Protocol buffers</a> 
+                are used for service definitions and data serialization.
+            </p>
+            <h2>Current state</h2>
+            <p class="About-description">
+                This site is a preview version of the system. The features on the <a href="/">homepage</a> will be available over the next few months.
+            </p>
+            <h3>Developers</h3>
+            <p class="About-description">
+                Jamsync is being developed by <a href="https://www.linkedin.com/in/zdgeier/">Zachary Geier</a> and <a href="https://www.linkedin.com/in/chris-geier/">Chris Geier</a>. Please send us an email if you have any thoughts at <a href="mailto:zach@jamsync.dev">zach@jamsync.dev</a>.
+            </p>
+        </section>
+    </main>
+    {{template "footer.html"}}
+</body>
+{{template "foot.html"}}

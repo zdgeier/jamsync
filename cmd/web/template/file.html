@@ -1,0 +1,111 @@
+{{template "head.html"}}
+<body>
+    {{template "header.html" args "email" .Email}}
+    <main>
+        <div class="Location">
+            <h1 id="projectname"></h1>
+        </div>
+        <section class="Files" id="filescontainer">
+            <div class="slidecontainer">
+                <input class="slider is-hidden" type="range" min="1" max="10" id="commitIdInput" step="1" list="steplist">
+                <datalist class="slider-steps" id="steplist">
+                </datalist>                
+            </div>
+            <pre id="js-file-location-wrapper" class="File-wrapper"><code id="js-file-location" contenteditable="true"></code></pre>
+            </ol>
+        </section>
+    </main>
+    <script async type="module">
+        let splitPath = window.location.pathname.split("/");
+        let projectUrl =  splitPath.slice(0, 3).join('/');
+        let projectName = splitPath[2];
+        let currentPath = splitPath.slice(4).join('/');
+        let projectNameEl = document.getElementById("projectname");
+        projectNameEl.innerHTML = "$ " + projectName + "/" + currentPath;
+
+        function debounce(func, timeout = 1000){
+            let timer;
+            return (...args) => {
+                let wrapper = document.getElementById("js-file-location-wrapper");
+                wrapper.classList.add('Files-wrapper--editing');
+                clearTimeout(timer);
+                timer = setTimeout(() => { func.apply(this, args); }, timeout);
+            };
+        }
+
+        let put = async () => {
+            let outerDiv = document.getElementById("js-file-location");
+            let fileResp = await fetch(`/api/projects/${projectName}/file/${currentPath}`, {method: 'PUT', body: outerDiv.innerText});
+            let fileRespJson = await fileResp.json();
+            const queryParams = new URLSearchParams(window.location.search);
+            const commitIdInput = document.getElementById("commitIdInput");
+            commitIdInput.min = 1;
+            commitIdInput.max = fileRespJson.commitId;
+            commitIdInput.value = fileRespJson.commitId;
+            queryParams.set("commitId", fileRespJson.commitId);
+            history.replaceState(null, null, "?"+queryParams.toString());
+            let wrapper = document.getElementById("js-file-location-wrapper");
+            wrapper.classList.remove('Files-wrapper--editing');
+        }
+        let putNewFile = debounce(put)
+
+        async function updateFile(commitId) {
+            let fileResp = await fetch(`/api/projects/${projectName}/file/${currentPath}?commitId=${commitId}`);
+            let fileText = await fileResp.text();
+
+            
+            let outerDiv = document.getElementById("js-file-location");
+            outerDiv.removeEventListener('input', putNewFile);
+            outerDiv.data = `/api/projects/${projectName}/file/${currentPath}`;
+            outerDiv.innerText = fileText
+            outerDiv.addEventListener('input', putNewFile);
+        }
+
+        async function setupSlider() {
+            let projectMetadataResp = await fetch(`/api/committedchanges/${projectName}`);
+            let projectMetadataJson = await projectMetadataResp.json();
+            const queryParams = new URLSearchParams(window.location.search);
+            let maxCommitId = Math.max(...projectMetadataJson.change_ids);
+            let selectedCommitId = queryParams.get("commitId") ? queryParams.get("commitId") : maxCommitId;
+            if (maxCommitId >= 1) {
+                const commitIdInput = document.getElementById("commitIdInput");
+                commitIdInput.min = 1;
+                commitIdInput.max = maxCommitId;
+                commitIdInput.value = selectedCommitId;
+                commitIdInput.classList.remove("is-hidden")
+                commitIdInput.addEventListener("input", async () => {
+                    const commitId = commitIdInput.value;
+                    const queryParams = new URLSearchParams(window.location.search);
+                    queryParams.set("commitId", commitId);
+
+                    history.replaceState(null, null, "?"+queryParams.toString());
+                    await updateFile(parseInt(commitIdInput.value))
+                    return
+                });
+
+                let stepListEl = document.querySelector('#steplist')
+                for (let i = 0; i < maxCommitId; i++) {
+                    let temp = document.createElement("option");
+                    temp.innerHTML = i;
+                    stepListEl.appendChild(temp);
+                }
+                await updateFile(parseInt(commitIdInput.value))
+            }
+        }
+        setupSlider();
+
+        let url = `ws:/\/${window.location.host}/api/ws/committedchanges/${projectName}`;
+        let c = new WebSocket(url);
+
+        c.addEventListener('message', async (event) => {
+            console.log(event.data)
+            const queryParams = new URLSearchParams(window.location.search);
+            queryParams.set("commitId", event.data);
+            history.replaceState(null, null, "?"+queryParams.toString());
+            //window.location.search = searchParams.toString();
+            setupSlider()
+        });
+    </script>
+    {{template "footer.html"}}
+</body>
+{{template "foot.html"}}

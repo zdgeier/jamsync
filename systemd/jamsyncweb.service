@@ -1,0 +1,15 @@
+[Unit]
+Description=Jamsync Server
+After=network.target
+StartLimitIntervalSec=0
+[Service]
+# WorkingDirectory=build directory of jamsync folder
+# EnvironmentFile=environment file containing JAMENV
+Type=simple
+Restart=always
+RestartSec=1
+User=ec2-user
+# ExecStart=path to jamweb binary
+
+[Install]
+WantedBy=multi-user.target

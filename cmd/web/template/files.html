@@ -1,0 +1,117 @@
+{{template "head.html"}}
+<body>
+    {{template "header.html" args "email" .Email}}
+    <main>
+        <div>
+            <h1 id="projectname"></h1><div class="ChangeList js-changelist"></div>
+        </div>
+        <div class="is-hidden" id="js-no-files">No files here, <a href="/download">download the CLI</a> to get started!</div>
+        <section class="Files" id="filescontainer">
+            <div class="slidecontainer">
+                <input class="slider is-hidden" type="range" min="1" max="10" value="1" id="commitIdInput" step="1">
+            </div>
+            <div></div>
+            <ol class="Files-table is-hidden" id="files">
+            </ol>
+        </section>
+    </main>
+    {{template "footer.html"}}
+    <script type="module">
+        let splitPath = window.location.pathname.split("/");
+        let projectUrl =  splitPath.slice(0, 3).join('/');
+        let projectName = splitPath[2];
+        let currentPath = splitPath.slice(4).join('/');
+        let projectNameEl = document.getElementById("projectname");
+        projectNameEl.innerHTML = "$ " + projectName + "/" + currentPath;
+
+        async function setupSlider() {
+            let projectMetadataResp = await fetch(`/api/committedchanges/${projectName}`);
+            let projectMetadataJson = await projectMetadataResp.json();
+            const queryParams = new URLSearchParams(window.location.search);
+            console.log(projectMetadataJson)
+            if (!projectMetadataJson.change_ids) {
+                let noFiles = document.getElementById("js-no-files");
+                noFiles.classList.remove('is-hidden');
+                return
+            }
+            let maxCommitId = Math.max(...projectMetadataJson.change_ids);
+            let selectedCommitId = queryParams.get("commitId") ? queryParams.get("commitId") : maxCommitId;
+            if (maxCommitId >= 1) {
+                const commitIdInput = document.getElementById("commitIdInput");
+                commitIdInput.min = 1;
+                commitIdInput.max = maxCommitId;
+                commitIdInput.value = selectedCommitId;
+                commitIdInput.classList.remove("is-hidden")
+                commitIdInput.addEventListener("input", async () => {
+                    const commitId = commitIdInput.value;
+                    const queryParams = new URLSearchParams(window.location.search);
+                    queryParams.set("commitId", commitId);
+
+                    history.replaceState(null, null, "?"+queryParams.toString());
+                    await updateFilesTable(parseInt(commitIdInput.value))
+                    return
+                });
+                var event = document.createEvent('Event');
+                event.initEvent('input', true, true);
+                commitIdInput.dispatchEvent(event);
+            }
+        }
+
+        async function updateFilesTable(commitId) {
+            let filesResp = await fetch(`/api/projects/${projectName}/files/${currentPath}?commitId=${commitId}`);
+            let filesJson = await filesResp.json();
+
+            let allFilesTempEl = document.createElement("ol");
+            allFilesTempEl.id = "files";
+            allFilesTempEl.classList.add("Files-table");
+            if (!filesJson.directories) {
+                filesJson.directories = []
+            }
+            if (currentPath != "" && filesJson.directories) {
+                filesJson.directories.unshift("..")
+            }
+            if (filesJson.directories) {
+                for (let directory of filesJson.directories.sort()) {
+                    let listItemEl = document.createElement("li");
+                    let directoryLink = document.createElement("a");
+                    if (currentPath == "") {
+                        directoryLink.href = `${projectUrl}/files/${directory}`;
+                    } else if (directory == "..") {
+                        let currPaths = currentPath.split('/');
+                        currPaths.pop();
+                        directoryLink.href = `${projectUrl}/files/${currPaths.join('/')}`;
+                    } else {
+                        directoryLink.href = `${projectUrl}/files/${currentPath}/${directory}`;
+                    }
+                    directoryLink.innerHTML = directory + "/"
+                    listItemEl.classList.add("Files-directory")
+                    listItemEl.appendChild(directoryLink);
+                    allFilesTempEl.appendChild(listItemEl);
+                }
+            }
+
+            if (filesJson.files) {
+                for (let file of filesJson.files.sort()) {
+                    let listItemEl = document.createElement("li");
+                    let fileLink = document.createElement("a");
+                    if (currentPath == "") {
+                        fileLink.href = `${projectUrl}/file/${file}`;
+                    } else {
+                        fileLink.href = `${projectUrl}/file/${currentPath}/${file}`;
+                    }
+                    fileLink.innerHTML = file; 
+                    listItemEl.appendChild(fileLink);
+                    allFilesTempEl.appendChild(listItemEl);
+                }
+            }
+
+            let allFilesEl = document.getElementById("files");
+            allFilesEl.remove();
+            document.getElementById('filescontainer').appendChild(allFilesTempEl);
+            allFilesTempEl.classList.remove("is-hidden");
+        }
+        setupSlider();
+    </script>
+</body>
+
+</html>

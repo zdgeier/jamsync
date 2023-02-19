@@ -1,0 +1,18 @@
+# Golang
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+.DS_Store
+
+# Custom
+jb
+jamsync.db
+jamsync-build*
+.jamsync
+jamsync-build.zip
+.vscode

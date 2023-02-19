@@ -1,0 +1,10 @@
+{{define "footer.html"}}
+<footer>
+    <div>
+        © <span id="year"></span> Jamsync :: Theme made by <a href="https://twitter.com/panr">@panr</a>
+    </div>
+</footer>
+<script>
+    document.getElementById("year").innerHTML = new Date().getFullYear();
+</script>
+{{end}}

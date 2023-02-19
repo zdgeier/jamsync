@@ -1,0 +1,45 @@
+{{template "head.html" args 
+    "title" "Download" 
+    "canonical" "download" 
+    "description" "You can try a preview version Jamsync out for yourself using the client binaries on this page. Note that Jamsync is under development so make sure to back up your files. Currently only Mac and Linux builds are available."
+}}
+<body>
+    {{template "header.html" args "email" .Email}}
+    <main>
+        <section class="Download">
+            <h1>Download</h1>
+            <p>You can try a preview version Jamsync out for yourself using the client binaries below.</p>
+            <p>Note that Jamsync is under development so make sure to back up your files. Currently only Mac and Linux builds are available.</p>
+            <ul>
+                <li><a class="Download-link" href="/public/jam_darwin_arm64.zip">darwin/arm64</a></li>
+                <li><a class="Download-link" href="/public/jam_darwin_amd64.zip">darwin/amd64</a></li>
+                <li><a class="Download-link" href="/public/jam_linux_arm64.zip">linux/arm64</a></li>
+                <li><a class="Download-link" href="/public/jam_linux_amd64.zip">linux/amd64</a></li>
+            </ul>
+            <h2>Installation and Usage</h2>
+            <p>
+                The Jamsync client is a single, small (~15MB) binary. To install, just download the client above and put it somewhere on your PATH.
+            </p>
+            <p>
+                The functionality is fairly limited currently but we'll be adding on <a href="/">features</a> over the next few months.
+                `jam` is the only command and will look in your current directory to see if it's empty. 
+                If the directory is empty, you have an option to pull an existing project into the current directory.
+                If there are existing contents, you have the option to upload the contents and create a project for the current directory.
+            </p>
+            <p>
+                Once a project is created `jam` will place a `.jamsync` file in your current directory as the root of the project.
+                Any subsequent `jam` invocations will only upload changes starting from the project root.
+            </p>
+            <p>
+                Users of jamsync.dev have a total storage limit of 5GB but let zach@jamsync.dev know if you would like more.
+            </p>
+            <h2>Source</h2>
+            <p>The AGPL-licensed source is available below. There's not any documentation yet so it will be difficult to self host. Contact zach@jamsync.dev if you need any assistance. We're currently not taking contributions but feel free to email us for feature requests.</p>
+            <ul>
+                <li><a class="Download-link" href="/public/jamsync-source.zip">jamsync-source.zip</a></li>
+            </ul>
+        </section>
+    </main>
+    {{template "footer.html"}}
+</body>
+{{template "foot.html"}}

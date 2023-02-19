@@ -1,0 +1,201 @@
+syntax = "proto3";
+package pb;
+
+option go_package = "github.com/zdgeier/jamsync/proto/pb";
+import "google/protobuf/timestamp.proto";
+
+service JamsyncAPI {
+    rpc CreateChange(CreateChangeRequest) returns (CreateChangeResponse);
+    rpc WriteOperationStream(stream Operation) returns (WriteOperationStreamResponse);
+    rpc CommitChange(CommitChangeRequest) returns (CommitChangeResponse);
+    rpc ReadBlockHashes(ReadBlockHashesRequest) returns (ReadBlockHashesResponse);
+    rpc ReadFile(ReadFileRequest) returns (stream Operation);
+    rpc ChangeStream(ChangeStreamRequest) returns (stream ChangeStreamMessage);
+
+    rpc AddProject(AddProjectRequest) returns (AddProjectResponse);
+    rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse);
+    rpc ListUserProjects(ListUserProjectsRequest) returns (ListUserProjectsResponse);
+    rpc ListCommittedChanges(ListCommittedChangesRequest) returns (ListCommittedChangesResponse);
+    rpc GetProjectConfig(GetProjectConfigRequest) returns (ProjectConfig);
+
+    rpc UserInfo(UserInfoRequest) returns (UserInfoResponse);
+    rpc CreateUser(CreateUserRequest) returns (CreateUserResponse);
+    rpc Ping(PingRequest) returns (PingResponse);
+}
+
+message ChangeStreamRequest{
+    uint64 project_id = 1;
+}
+message ChangeStreamMessage{
+    uint64 project_id = 1;
+    string userId = 2;
+}
+
+message WriteOperationStreamResponse {}
+
+message FileMetadataDiff {
+    enum Type {
+        NoOp = 0;
+        Create = 1;
+        Update = 2;
+        Delete = 3; 
+    }
+    message FileDiff {
+        Type type = 1;
+        File file = 2;
+    }
+    map<string, FileDiff> diffs = 1;
+}
+
+message BlockHash {
+    uint64 index = 1;
+    bytes strong_hash = 2;
+    uint32 weak_hash = 3;
+}
+
+message ReadFileRequest {
+    uint64 project_id = 1;
+    uint64 change_id = 2;
+    uint64 path_hash = 3;
+    google.protobuf.Timestamp mod_time = 4; 
+    repeated BlockHash block_hashes = 5;
+}
+
+message ReadBlockHashesRequest {
+    uint64 project_id = 1;
+    uint64 change_id = 2;
+    uint64 path_hash = 3;
+    google.protobuf.Timestamp mod_time = 4; 
+}
+
+message ReadBlockHashesResponse {
+    repeated BlockHash block_hashes = 1;
+}
+
+message OperationLocations {
+    uint64 project_id = 1;
+    string owner_id = 2;
+    uint64 change_id = 3;
+    uint64 path_hash = 4;
+    message OperationLocation {
+        uint64 offset = 1;
+        uint64 length = 2;
+    }
+    repeated OperationLocation opLocs = 5;
+}
+
+message CommitChangeRequest {
+    uint64 change_id = 1;
+    uint64 project_id = 2;
+}
+message CommitChangeResponse {}
+
+message CreateChangeRequest {
+    uint64 project_id = 1;
+}
+message CreateChangeResponse {
+    uint64 change_id = 1;
+}
+
+message Operation {
+    uint64 project_id = 1;
+    uint64 change_id = 2;
+    uint64 path_hash = 3;
+    enum Type {
+        OpBlock = 0;
+        OpData = 1;
+        OpHash = 2;
+        OpBlockRange = 3;
+    }
+    Type type = 4;
+    uint64 block_index = 5;
+    uint64 block_index_end = 6;
+    bytes data = 7;
+}
+
+message File {
+    google.protobuf.Timestamp mod_time = 1; 
+    bool dir = 2;
+    uint64 hash = 3;
+}
+
+message FileMetadata {
+    map<string, File> files = 1;
+}
+
+message AddProjectRequest {
+    string project_name = 1;
+}
+message AddProjectResponse {
+    uint64 project_id = 1;
+}
+
+message ListUserProjectsRequest {}
+message ListUserProjectsResponse {
+    message Project {
+        string name = 1;
+        uint64 id = 2;
+    }
+    repeated Project projects = 1;
+}
+
+message ListProjectsRequest {}
+message ListProjectsResponse {
+    message Project {
+        string name = 1;
+        uint64 id = 2;
+    }
+    repeated Project projects = 1;
+}
+
+message UserInfoRequest {
+    string username = 1;
+}
+
+message UserInfoResponse {
+    string username = 1;
+}
+
+message CreateUserRequest {
+    string username = 1;
+}
+message CreateUserResponse {}
+
+message BrowseProjectRequest {
+    string project_name = 1;
+    string path = 2;
+}
+
+message BrowseProjectResponse {
+    repeated string directories = 1;
+    repeated string files = 2;
+}
+
+message GetCurrentChangeRequest {
+    string project_name = 1;
+}
+message GetCurrentChangeResponse {
+    uint64 changeId = 1;
+    google.protobuf.Timestamp timestamp = 2;
+}
+
+message GetProjectConfigRequest {
+    string project_name = 1;
+    uint64 project_id = 2;
+}
+
+message ProjectConfig {
+    uint64 projectId = 1;
+    uint64 current_change = 2;
+}
+
+message ListCommittedChangesRequest {
+    string project_name = 1;
+}
+
+message ListCommittedChangesResponse {
+    repeated uint64 change_ids = 1;
+}
+
+message PingRequest {}
+message PingResponse {}
