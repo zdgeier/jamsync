@@ -7,9 +7,9 @@
             </a>
         </div>
         {{if $.email}}
-            <a class="Header-login" href="/logout">Logout</a>
+        <a class="Header-login" href="/logout">Logout</a>
         {{else}}
-            <a class="Header-login" href="/login">Login</a>
+        <a class="Header-login" href="/login">Login</a>
         {{end}}
     </div>
     <div class="Header-bottom">
@@ -18,9 +18,11 @@
             <a class="Header-bottomLink" href="/about">About</a>
             <a class="Header-bottomLink" href="/download">Download</a>
         </div>
+        {{if $.email}}
         <div class="Header-bottomRight">
             <a class="Header-bottomLink" href="/{{.email}}/projects">{{$.email}}</a>
         </div>
+        {{end}}
     </div>
 </header>
 {{end}}

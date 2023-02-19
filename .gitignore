@@ -16,3 +16,4 @@ jamsync-build*
 .jamsync
 jamsync-build.zip
 .vscode
+gen/

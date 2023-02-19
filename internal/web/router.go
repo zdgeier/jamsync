@@ -3,13 +3,16 @@ package web
 import (
 	"encoding/gob"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
+	"path/filepath"
 	"time"
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/handlers"
 
 	"github.com/zdgeier/jamsync/internal/jamenv"
 	"github.com/zdgeier/jamsync/internal/web/api"
@@ -27,7 +30,7 @@ type templateParams struct {
 	Email interface{}
 }
 
-func New(auth *authenticator.Authenticator) *gin.Engine {
+func New(auth *authenticator.Authenticator) http.Handler {
 	if jamenv.Env() == jamenv.Prod {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -115,5 +118,32 @@ func New(auth *authenticator.Authenticator) *gin.Engine {
 	router.GET("/:username/:project/file/*path", middleware.IsAuthenticated, middleware.Reauthenticate, file.Handler)
 	router.GET("/:username/:project/files/*path", middleware.IsAuthenticated, middleware.Reauthenticate, files.Handler)
 	router.GET("/:username/:project", middleware.IsAuthenticated, middleware.Reauthenticate, files.Handler)
-	return router
+	return MaxAge(handlers.CompressHandler(router))
+}
+
+// MaxAge sets expire headers based on extension
+func MaxAge(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var age time.Duration
+		ext := filepath.Ext(r.URL.String())
+
+		// Timings are based on github.com/h5bp/server-configs-nginx
+
+		switch ext {
+		case ".rss", ".atom":
+			age = time.Hour / time.Second
+		case ".css", ".js":
+			age = (time.Hour * 24 * 365) / time.Second
+		case ".jpg", ".jpeg", ".gif", ".png", ".ico", ".cur", ".gz", ".svg", ".svgz", ".mp4", ".ogg", ".ogv", ".webm", ".htc", ".woff2":
+			age = (time.Hour * 24 * 30) / time.Second
+		default:
+			age = 0
+		}
+
+		if age > 0 {
+			w.Header().Add("Cache-Control", fmt.Sprintf("max-age=%d, public, must-revalidate, proxy-revalidate", age))
+		}
+
+		h.ServeHTTP(w, r)
+	})
 }

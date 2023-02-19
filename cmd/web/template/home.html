@@ -2,6 +2,7 @@
     "title" "Home" 
     "canonical" "" 
     "description" "Jamsync is a open-source version control system that enables software engineers to develop and deploy faster."
+    "customStyle" "/public/lite-youtube-embed/lite-youtube-embed.css"
 }}
 <body>
     {{template "header.html" args "email" .Email}}
@@ -28,7 +29,8 @@
             </div>
         </section>
         <section class="Core">
-            <iframe class="Core-video" width="560" height="315" src="https://www.youtube.com/embed/9qPtWteOZmo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+            <lite-youtube videoid="9qPtWteOZmo" style="background-image: url('public/demofacade.webp');">
+            </lite-youtube>
             <p>
                 Jamsync is a open-source version control system that enables software engineers to develop and deploy faster.
                 We're currently under development but feel free to preview an in-development version on this site or <a href="/download">view the source.</a>
@@ -57,10 +59,6 @@
             <h2>Store secrets and variables</h2>
             <p class="Core-description">
                 Managing and versioning secrets and variables safely is complicated. Jamsync stores your secrets in a centralized place to make it easy and secure to deploy your code anywhere.
-            </p>
-            <h2></h2>
-            <p class="Core-description">
-
             </p>
             <h2>Free and Open-source</h2>
             <p class="Core-description">

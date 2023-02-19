@@ -1,4 +1,8 @@
-{{template "head.html"}}
+{{template "head.html" args
+    "title" "Projects" 
+    "canonical" "{{.Email}}/projects" 
+    "description" "View and manage your Jamsync projects."
+}}
 <body>
     {{template "header.html" args "email" .Email}}
     <main>
@@ -14,9 +18,6 @@
             </div>
             <ul class="Projects-list is-hidden" id="projects">
             </ul>
-            <div>
-                <p class="Projects-list--empty is-hidden" id="projectsEmpty">Looks like you don't have any projects yet. Follow the instructions <a href="/download">here</a> to get started</p>
-            </div>
         </section>
     </main>
     <script>
