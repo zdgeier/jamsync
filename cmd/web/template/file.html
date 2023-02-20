@@ -7,6 +7,13 @@
     <main>
         <section class="File">
             <div id="js-code-editor-location"></div>
+            <div id="editors"></div>
+            <button id=addpeer style="margin-left: 1em">Add peer</button>
+            <label style="margin-left: 1em">Latency ≈ <select id=latency>
+                <option value=10>10ms</option>
+                <option value=50 selected>50ms</option>
+                <option value=250>250ms</option>
+              </select></label>
         </section>
     </main>
     {{template "footer.html"}}

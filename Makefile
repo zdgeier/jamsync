@@ -20,7 +20,7 @@ protos:
 	mkdir -p gen/go && protoc --proto_path=proto --go_out=gen/pb --go_opt=paths=source_relative --go-grpc_out=gen/pb --go-grpc_opt=paths=source_relative proto/*.proto
 
 buildeditor:
-	cd cmd/web/editor && ./node_modules/.bin/rollup -c rollup.config.mjs && mv editor.bundle.js ../public/
+	cd cmd/web/editor && ./node_modules/.bin/rollup -c rollup.config.mjs && mv *.bundle.js ../public/
 
 movewebassets:
 	cp -R cmd/web/public jamsync-build/; cp -R cmd/web/template jamsync-build/; 

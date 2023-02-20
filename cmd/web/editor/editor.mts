@@ -1,8 +1,3 @@
-import { basicSetup, EditorView } from "codemirror";
-// import {StreamLanguage} from "@codemirror/language"
-import { keymap, ViewPlugin, ViewUpdate } from "@codemirror/view";
-import { indentWithTab } from "@codemirror/commands";
-import { vim } from "@replit/codemirror-vim";
 import {
   collab,
   getSyncedVersion,
@@ -10,108 +5,82 @@ import {
   sendableUpdates,
   Update,
 } from "@codemirror/collab";
-import { ChangeSet } from "@codemirror/state";
-// import {go} from "@codemirror/legacy-modes/mode/go"
+import { basicSetup } from "codemirror";
+import { ChangeSet, EditorState, Text } from "@codemirror/state";
+import { EditorView, keymap, ViewPlugin, ViewUpdate } from "@codemirror/view";
+import { indentWithTab } from "@codemirror/commands";
+import { vim } from "@replit/codemirror-vim";
 
-// .cm-editor.cm-focused { outline: 2px solid cyan }
-// .cm-editor .cm-content { font-family: "Consolas" }
+// private _request(value: any): Promise<any> {
+//   return new Promise((resolve) => {
+//     let channel = new MessageChannel();
+//     channel.port2.onmessage = (event) => resolve(JSON.parse(event.data));
+//     this.worker.postMessage(JSON.stringify(value), [channel.port1]);
+//   });
+// }
 
-let myTheme = EditorView.theme({
-  "&": {
-    color: "white",
-    backgroundColor: "var(--dark-blue)",
-    font: "'Fira Code', Monaco, Consolas, Ubuntu Mono, monospace",
-  },
-  ".cm-editor.cm-focused": {
-    outline: "1px solid var(--bright-pink)",
-  },
-  ".cm-content": {
-    caretColor: "white",
-  },
-  ".cm-activeLineGutter": {
-    backgroundColor: "rgba(255, 0, 127, 0.25)",
-  },
-  ".cm-activeLine": {
-    backgroundColor: "rgba(255, 0, 127, 0.25)",
-  },
-  "&.cm-focused .cm-cursor": {
-    borderLeftColor: "var(--bright-pink)",
-  },
-  "&.cm-focused .cm-selectionBackground, ::selection": {
-    backgroundColor: "var(--bright-pink)",
-  },
-  ".cm-selectionMatch": {
-    backgroundColor: "var(--bright-pink)",
-  },
-  ".cm-gutters": {
-    backgroundColor: "var(--dark-blue)",
-    color: "#ddd",
-    border: "none",
-  },
-}, { dark: true });
+// async request(value: any) {
+//   return await this._request(value);
+// }
 
-function pushUpdates(
-  version: number,
-  fullUpdates: readonly Update[],
-): Promise<boolean> {
-  // Strip off transaction data
-  let updates = fullUpdates.map((u) => ({
-    clientID: u.clientID,
-    changes: u.changes.toJSON(),
-  }));
+// setConnected(value: boolean) {
+//   if (value && this.disconnected) {
+//     this.disconnected.resolve();
+//     this.disconnected = null;
+//   } else if (!value && !this.disconnected) {
+//     let resolve, wait = new Promise<void>((r) => resolve = r);
+//     this.disconnected = { wait, resolve };
+//   }
+// }
 
-  console.log("push updates", fullUpdates);
-  //return connection.request({ type: "pushUpdates", version, updates });
-  return new Promise<boolean>(resolve => resolve(true));
-}
+//!wrappers
 
-let splitPath = window.location.pathname.split("/");
-let projectName = splitPath[2];
-let url =
-  `wss:/\/${window.location.host}/api/ws/committedchanges/${projectName}`;
-let c = new WebSocket(url);
+// function pushUpdates(
+//   connection: Connection,
+//   version: number,
+//   fullUpdates: readonly Update[],
+// ): Promise<boolean> {
+//   // Strip off transaction data
+//   let updates = fullUpdates.map((u) => ({
+//     clientID: u.clientID,
+//     changes: u.changes.toJSON(),
+//   }));
+//   return connection.pushUpdates(version, updates)
+// }
 
-function pullUpdates(
-  version: number,
-): Promise<readonly Update[]> {
-  console.log("pull updates");
-  return new Promise<readonly Update[]>(resolve => {
-    c.addEventListener("message", (event) => resolve(JSON.parse(event.data)));
-  });
-  //return connection.request({ type: "pullUpdates", version })
-  //  .then((updates) =>
-  //    updates.map((u) => ({
-  //      changes: ChangeSet.fromJSON(u.changes),
-  //      clientID: u.clientID,
-  //    }))
-  //  );
-}
+// function pullUpdates(
+//   connection: Connection,
+//   version: number,
+// ): Promise<readonly Update[]> {
+//   return connection.pullUpdates(version)
+//   //return connection.request({ type: "pullUpdates", version })
+//   //  .then((updates) =>
+//   //    updates.map((u) => ({
+//   //      changes: ChangeSet.fromJSON(u.changes),
+//   //      clientID: u.clientID,
+//   //    }))
+//   //  );
+// }
 
-async function getDocument() {
-  let splitPath = window.location.pathname.split("/");
-  let projectName = splitPath[2];
-  let currentPath = splitPath.slice(4).join("/");
+//!peerExtension
 
-  let projectMetadataResp = await fetch(`/api/committedchanges/${projectName}`);
-  let projectMetadataJson = await projectMetadataResp.json();
-  let maxCommitId = Math.max(...projectMetadataJson.change_ids);
-
-  let fileResp = await fetch(
-    `/api/projects/${projectName}/file/${currentPath}?commitId=${maxCommitId}`,
-  );
-  let fileText = await fileResp.text();
-
-  return { maxCommitId, fileText };
-}
-
-function peerExtension(startVersion: number) {
+function peerExtension(startVersion: number, projectName: String) {
+  let url =
+    `ws:/\/${window.location.host}/api/ws/committedchanges/${projectName}`;
+  let ws = new WebSocket(url);
   let plugin = ViewPlugin.fromClass(
     class {
       private pushing = false;
-      private done = false;
 
       constructor(private view: EditorView) {
-        this.pull();
+        ws.onmessage = (event) => {
+          console.log("message", event);
+          let version = getSyncedVersion(this.view.state);
+          //let updates = await connection.pullUpdates(version);
+          this.view.dispatch(
+            receiveUpdates(this.view.state, JSON.parse(event.data)),
+          );
+        };
       }
 
       update(update: ViewUpdate) {
@@ -119,12 +88,16 @@ function peerExtension(startVersion: number) {
       }
 
       async push() {
-        console.log("push");
-        let updates = sendableUpdates(this.view.state);
+        let updates = sendableUpdates(this.view.state).map((u) => ({
+          clientID: u.clientID,
+          changes: u.changes.toJSON(),
+        }));
         if (this.pushing || !updates.length) return;
         this.pushing = true;
         let version = getSyncedVersion(this.view.state);
-        await pushUpdates(version, updates);
+        console.log("sending")
+        ws.send(JSON.stringify({ version, updates }));
+
         this.pushing = false;
         // Regardless of whether the push failed or new updates came in
         // while it was running, try again if there's updates remaining
@@ -132,40 +105,255 @@ function peerExtension(startVersion: number) {
           setTimeout(() => this.push(), 100);
         }
       }
-
-      async pull() {
-        while (!this.done) {
-          let version = getSyncedVersion(this.view.state);
-          let updates = await pullUpdates(version);
-          this.view.dispatch(receiveUpdates(this.view.state, updates));
-        }
-      }
-
-      destroy() {
-        this.done = true;
-      }
     },
   );
   return [collab({ startVersion }), plugin];
 }
 
-async function populateEditor() {
-  let { maxCommitId, fileText } = await getDocument();
+//!rest
 
-  return new EditorView({
-    doc: fileText,
-    //extensions: [basicSetup, keymap.of([indentWithTab]), StreamLanguage.define(go)],
+//const worker = new Worker("/public/worker.bundle.js");
+
+let updates: Update[] = [];
+async function addPeer() {
+  let splitPath = self.location.pathname.split("/");
+  let projectName = splitPath[2];
+  let currentPath = splitPath.slice(4).join("/");
+  let projectMetadataResp = await fetch(
+    `/api/committedchanges/${projectName}`,
+  );
+  let projectMetadataJson = await projectMetadataResp.json();
+  let maxCommitId = Math.max(...projectMetadataJson.change_ids);
+
+  let fileResp = await fetch(
+    `/api/projects/${projectName}/file/${currentPath}?commitId=${maxCommitId}`,
+  );
+  let doc = Text.of((await fileResp.text()).split("\n"));
+
+  let state = EditorState.create({
+    doc,
+    extensions: [basicSetup, peerExtension(updates.length, projectName)],
+  });
+  let editors = document.querySelector("#editors");
+  let wrap = editors.appendChild(document.createElement("div"));
+  wrap.className = "editor";
+  let myTheme = EditorView.theme({
+    "&": {
+      color: "white",
+      backgroundColor: "var(--dark-blue)",
+      font: "'Fira Code', Monaco, Consolas, Ubuntu Mono, monospace",
+    },
+    ".cm-editor.cm-focused": {
+      outline: "1px solid var(--bright-pink)",
+    },
+    ".cm-content": {
+      caretColor: "white",
+    },
+    ".cm-activeLineGutter": {
+      backgroundColor: "rgba(255, 0, 127, 0.25)",
+    },
+    ".cm-activeLine": {
+      backgroundColor: "rgba(255, 0, 127, 0.25)",
+    },
+    "&.cm-focused .cm-cursor": {
+      borderLeftColor: "var(--bright-pink)",
+    },
+    "&.cm-focused .cm-selectionBackground, ::selection": {
+      backgroundColor: "var(--bright-pink)",
+    },
+    ".cm-selectionMatch": {
+      backgroundColor: "var(--bright-pink)",
+    },
+    ".cm-gutters": {
+      backgroundColor: "var(--dark-blue)",
+      color: "#ddd",
+      border: "none",
+    },
+  }, { dark: true });
+  new EditorView({
+    state,
+    parent: wrap,
     extensions: [
       myTheme,
       basicSetup,
       keymap.of([indentWithTab]),
-      peerExtension(maxCommitId),
       vim(),
     ],
-    parent: document.getElementById("js-code-editor-location")!,
   });
 }
-populateEditor();
+
+(document.querySelector("#addpeer") as HTMLButtonElement).onclick = addPeer;
+
+addPeer();
+
+// import { basicSetup, EditorView } from "codemirror";
+// // import {StreamLanguage} from "@codemirror/language"
+// import { keymap, ViewPlugin, ViewUpdate } from "@codemirror/view";
+// import { indentWithTab } from "@codemirror/commands";
+// import { vim } from "@replit/codemirror-vim";
+// import {
+//   collab,
+//   getSyncedVersion,
+//   receiveUpdates,
+//   sendableUpdates,
+//   Update,
+// } from "@codemirror/collab";
+// import { ChangeSet } from "@codemirror/state";
+// // import {go} from "@codemirror/legacy-modes/mode/go"
+//
+// // .cm-editor.cm-focused { outline: 2px solid cyan }
+// // .cm-editor .cm-content { font-family: "Consolas" }
+//
+// let myTheme = EditorView.theme({
+//   "&": {
+//     color: "white",
+//     backgroundColor: "var(--dark-blue)",
+//     font: "'Fira Code', Monaco, Consolas, Ubuntu Mono, monospace",
+//   },
+//   ".cm-editor.cm-focused": {
+//     outline: "1px solid var(--bright-pink)",
+//   },
+//   ".cm-content": {
+//     caretColor: "white",
+//   },
+//   ".cm-activeLineGutter": {
+//     backgroundColor: "rgba(255, 0, 127, 0.25)",
+//   },
+//   ".cm-activeLine": {
+//     backgroundColor: "rgba(255, 0, 127, 0.25)",
+//   },
+//   "&.cm-focused .cm-cursor": {
+//     borderLeftColor: "var(--bright-pink)",
+//   },
+//   "&.cm-focused .cm-selectionBackground, ::selection": {
+//     backgroundColor: "var(--bright-pink)",
+//   },
+//   ".cm-selectionMatch": {
+//     backgroundColor: "var(--bright-pink)",
+//   },
+//   ".cm-gutters": {
+//     backgroundColor: "var(--dark-blue)",
+//     color: "#ddd",
+//     border: "none",
+//   },
+// }, { dark: true });
+//
+// function pushUpdates(
+//   version: number,
+//   fullUpdates: readonly Update[],
+// ): Promise<boolean> {
+//   // Strip off transaction data
+//   let updates = fullUpdates.map((u) => ({
+//     clientID: u.clientID,
+//     changes: u.changes.toJSON(),
+//   }));
+//
+//   console.log("push updates", fullUpdates);
+//   //return connection.request({ type: "pushUpdates", version, updates });
+//   return new Promise<boolean>(resolve => resolve(true));
+// }
+//
+// let splitPath = window.location.pathname.split("/");
+// let projectName = splitPath[2];
+// let url =
+//   `wss:/\/${window.location.host}/api/ws/committedchanges/${projectName}`;
+// let c = new WebSocket(url);
+//
+// function pullUpdates(
+//   version: number,
+// ): Promise<readonly Update[]> {
+//   console.log("pull updates");
+//   return new Promise<readonly Update[]>(resolve => {
+//     c.addEventListener("message", (event) => resolve(JSON.parse(event.data)));
+//   });
+//   //return connection.request({ type: "pullUpdates", version })
+//   //  .then((updates) =>
+//   //    updates.map((u) => ({
+//   //      changes: ChangeSet.fromJSON(u.changes),
+//   //      clientID: u.clientID,
+//   //    }))
+//   //  );
+// }
+//
+// async function getDocument() {
+//   let splitPath = window.location.pathname.split("/");
+//   let projectName = splitPath[2];
+//   let currentPath = splitPath.slice(4).join("/");
+//
+//   let projectMetadataResp = await fetch(`/api/committedchanges/${projectName}`);
+//   let projectMetadataJson = await projectMetadataResp.json();
+//   let maxCommitId = Math.max(...projectMetadataJson.change_ids);
+//
+//   let fileResp = await fetch(
+//     `/api/projects/${projectName}/file/${currentPath}?commitId=${maxCommitId}`,
+//   );
+//   let fileText = await fileResp.text();
+//
+//   return { maxCommitId, fileText };
+// }
+//
+// function peerExtension(startVersion: number) {
+//   let plugin = ViewPlugin.fromClass(
+//     class {
+//       private pushing = false;
+//       private done = false;
+//
+//       constructor(private view: EditorView) {
+//         this.pull();
+//       }
+//
+//       update(update: ViewUpdate) {
+//         if (update.docChanged) this.push();
+//       }
+//
+//       async push() {
+//         console.log("push");
+//         let updates = sendableUpdates(this.view.state);
+//         if (this.pushing || !updates.length) return;
+//         this.pushing = true;
+//         let version = getSyncedVersion(this.view.state);
+//         await pushUpdates(version, updates);
+//         this.pushing = false;
+//         // Regardless of whether the push failed or new updates came in
+//         // while it was running, try again if there's updates remaining
+//         if (sendableUpdates(this.view.state).length) {
+//           setTimeout(() => this.push(), 100);
+//         }
+//       }
+//
+//       async pull() {
+//         while (!this.done) {
+//           let version = getSyncedVersion(this.view.state);
+//           let updates = await pullUpdates(version);
+//           this.view.dispatch(receiveUpdates(this.view.state, updates));
+//         }
+//       }
+//
+//       destroy() {
+//         this.done = true;
+//       }
+//     },
+//   );
+//   return [collab({ startVersion }), plugin];
+// }
+//
+// async function populateEditor() {
+//   let { maxCommitId, fileText } = await getDocument();
+//
+//   return new EditorView({
+//     doc: fileText,
+//     //extensions: [basicSetup, keymap.of([indentWithTab]), StreamLanguage.define(go)],
+//     extensions: [
+//       myTheme,
+//       basicSetup,
+//       keymap.of([indentWithTab]),
+//       peerExtension(maxCommitId),
+//       vim(),
+//     ],
+//     parent: document.getElementById("js-code-editor-location")!,
+//   });
+// }
+// populateEditor();
 
 // let splitPath = window.location.pathname.split("/");
 // let projectUrl =  splitPath.slice(0, 3).join('/');
