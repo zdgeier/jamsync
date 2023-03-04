@@ -59,7 +59,7 @@ function pushUpdates(
     clientID: u.clientID,
     changes: u.changes.toJSON()
   }))
-  return connection.request({type: "pushUpdates", version, updates})
+  return connection.request({type: "pushUpdates", version, updates, projectName, currentPath})
 }
 
 function pullUpdates(
@@ -72,6 +72,7 @@ function pullUpdates(
       clientID: u.clientID
     })))
 }
+let host = window.location.host;
 let splitPath = self.location.pathname.split("/");
 let projectName = splitPath[2];
 let currentPath = splitPath.slice(4).join("/");
@@ -79,7 +80,7 @@ let currentPath = splitPath.slice(4).join("/");
 function getDocument(
   connection: Connection
 ): Promise<{version: number, doc: Text}> {
-  return connection.request({type: "getDocument", projectName, currentPath}).then(data => ({
+  return connection.request({type: "getDocument", host, projectName, currentPath}).then(data => ({
     version: data.version,
     doc: Text.of(data.doc.split("\n"))
   }))
@@ -87,12 +88,18 @@ function getDocument(
 
 //!peerExtension
 
+let url = `ws:/\/${window.location.host}/api/ws/committedchanges/${projectName}`;
+let ws = new WebSocket(url);
 function peerExtension(startVersion: number, connection: Connection) {
   let plugin = ViewPlugin.fromClass(class {
     private pushing = false
     private done = false
 
-    constructor(private view: EditorView) { this.pull() }
+    constructor(private view: EditorView) {
+        //this.pull()
+        console.log(ws)
+        ws.onmessage = (e) => this.pull(e)
+    }
 
     update(update: ViewUpdate) {
       if (update.docChanged) this.push()
@@ -111,13 +118,19 @@ function peerExtension(startVersion: number, connection: Connection) {
         setTimeout(() => this.push(), 100)
     }
 
-    async pull() {
-      while (!this.done) {
+    async pull(updates) {
         let version = getSyncedVersion(this.view.state)
-        let updates = await pullUpdates(connection, version)
+        console.log(updates)
         this.view.dispatch(receiveUpdates(this.view.state, updates))
-      }
     }
+
+    //async pull() {
+    //  while (!this.done) {
+    //    let version = getSyncedVersion(this.view.state)
+    //    let updates = await pullUpdates(connection, version)
+    //    this.view.dispatch(receiveUpdates(this.view.state, updates))
+    //  }
+    //}
 
     destroy() { this.done = true }
   })
@@ -149,5 +162,4 @@ async function addPeer() {
   new EditorView({state, parent: wrap})
 }
 
-addPeer()
 addPeer()

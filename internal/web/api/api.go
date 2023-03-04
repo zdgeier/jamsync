@@ -2,7 +2,7 @@ package api
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/json"
 	"io"
 	"net/http"
 	"strconv"
@@ -139,7 +139,34 @@ func PutFileHandler() gin.HandlerFunc {
 		}
 
 		client := client.NewClient(tempClient, config.GetProjectId(), config.GetCurrentChange())
-		err = client.UpdateFile(ctx, ctx.Param("path")[1:], ctx.Request.Body)
+
+		type req struct {
+			Doc     string        `json:"doc"`
+			Updates []interface{} `json:"updates"`
+		}
+
+		data, err := io.ReadAll(ctx.Request.Body)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		ctx.Request.Body.Close()
+
+		var parsedBody req
+		err = json.Unmarshal(data, &parsedBody)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// TODO: Do this better, we shouldnt unmarshal and then marshal again here
+		updateBytes, err := json.Marshal(parsedBody.Updates)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		err = client.UpdateFile(ctx, ctx.Param("path")[1:], []byte(parsedBody.Doc), string(updateBytes))
 		if err != nil {
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return
@@ -183,6 +210,7 @@ func CommitChangeWSHandler() gin.HandlerFunc {
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return
 		}
+		defer conn.Close()
 
 		changeStream, err := tempClient.ChangeStream(ctx, &pb.ChangeStreamRequest{ProjectId: config.ProjectId})
 		if err != nil {
@@ -192,7 +220,7 @@ func CommitChangeWSHandler() gin.HandlerFunc {
 		defer changeStream.CloseSend()
 
 		for {
-			_, err := changeStream.Recv()
+			recv, err := changeStream.Recv()
 			if err == io.EOF {
 				break
 			}
@@ -201,14 +229,12 @@ func CommitChangeWSHandler() gin.HandlerFunc {
 				break
 			}
 
-			config, err := tempClient.GetProjectConfig(ctx, &pb.GetProjectConfigRequest{
-				ProjectName: ctx.Param("projectName"),
-			})
+			resp, err := json.Marshal(recv)
 			if err != nil {
 				ctx.String(http.StatusInternalServerError, err.Error())
 				return
 			}
-			conn.WriteMessage(websocket.TextMessage, []byte(fmt.Sprint(config.CurrentChange)))
+			conn.WriteMessage(websocket.TextMessage, []byte(resp))
 		}
 	}
 

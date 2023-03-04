@@ -275,6 +275,7 @@ func (s JamsyncServer) CommitChange(ctx context.Context, in *pb.CommitChangeRequ
 	s.hub.Broadcast(&pb.ChangeStreamMessage{
 		ProjectId: in.GetProjectId(),
 		UserId:    userId,
+		Updates:   in.GetUpdates(),
 	})
 
 	return &pb.CommitChangeResponse{}, nil

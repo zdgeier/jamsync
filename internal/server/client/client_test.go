@@ -187,7 +187,7 @@ func TestClient_UploadDownload(t *testing.T) {
 			err = client.UploadFile(ctx, fileOperation.filePath, bytes.NewReader(currData))
 			require.NoError(t, err)
 
-			client.CommitChange()
+			client.CommitChange("")
 			require.NoError(t, err)
 
 			result := new(bytes.Buffer)
@@ -288,7 +288,7 @@ func TestClient_RandUploadDownload(t *testing.T) {
 				err = client.UploadFile(ctx, pair.FilePath, bytes.NewReader(data))
 				require.NoError(t, err)
 
-				client.CommitChange()
+				client.CommitChange("")
 				require.NoError(t, err)
 
 				result := new(bytes.Buffer)
@@ -599,7 +599,7 @@ func TestGetFileListDiff(t *testing.T) {
 			err = client.UploadFile(ctx, ".jamsyncfilelist", bytes.NewReader(metadataBytes))
 			require.NoError(t, err)
 
-			err = client.CommitChange()
+			err = client.CommitChange("")
 			require.NoError(t, err)
 		})
 	}

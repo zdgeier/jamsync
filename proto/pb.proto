@@ -28,6 +28,7 @@ message ChangeStreamRequest{
 message ChangeStreamMessage{
     uint64 project_id = 1;
     string userId = 2;
+    string updates = 3;
 }
 
 message WriteOperationStreamResponse {}
@@ -86,6 +87,7 @@ message OperationLocations {
 message CommitChangeRequest {
     uint64 change_id = 1;
     uint64 project_id = 2;
+    string updates = 3;
 }
 message CommitChangeResponse {}
 

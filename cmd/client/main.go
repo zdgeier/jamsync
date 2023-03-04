@@ -297,48 +297,49 @@ func pull(client *jam.Client, localToRemoteDiff *pb.FileMetadataDiff, remoteToLo
 		return
 	}
 
-	dirty := false
-	for path, remoteDiff := range remoteToLocalDiff.GetDiffs() {
-		if remoteDiff.GetType() != pb.FileMetadataDiff_NoOp {
-			// Local has changed
-			if localDiff, found := localToRemoteDiff.GetDiffs()[path]; found && localDiff.GetType() != pb.FileMetadataDiff_NoOp {
-				if localDiff.GetFile().Hash == remoteDiff.GetFile().Hash {
-					newModTime := remoteDiff.File.GetModTime().AsTime()
-					err := os.Chtimes(path, newModTime, newModTime)
-					if err != nil {
-						log.Panic(err)
-					}
-					continue
-				}
-				file, err := os.OpenFile(path+".jamdiff", os.O_RDWR|os.O_CREATE, 0755)
-				if err != nil {
-					log.Panic(err)
-				}
+	// Remove dirty for now
+	// dirty := false
+	// for path, remoteDiff := range remoteToLocalDiff.GetDiffs() {
+	// 	if remoteDiff.GetType() != pb.FileMetadataDiff_NoOp {
+	// 		// Local has changed
+	// 		if localDiff, found := localToRemoteDiff.GetDiffs()[path]; found && localDiff.GetType() != pb.FileMetadataDiff_NoOp {
+	// 			if localDiff.GetFile().Hash == remoteDiff.GetFile().Hash {
+	// 				newModTime := remoteDiff.File.GetModTime().AsTime()
+	// 				err := os.Chtimes(path, newModTime, newModTime)
+	// 				if err != nil {
+	// 					log.Panic(err)
+	// 				}
+	// 				continue
+	// 			}
+	// 			file, err := os.OpenFile(path+".jamdiff", os.O_RDWR|os.O_CREATE, 0755)
+	// 			if err != nil {
+	// 				log.Panic(err)
+	// 			}
 
-				reader, err := os.Open(path)
-				if err != nil {
-					log.Panic(err)
-				}
+	// 			reader, err := os.Open(path)
+	// 			if err != nil {
+	// 				log.Panic(err)
+	// 			}
 
-				err = client.DownloadFile(context.Background(), path, reader, file)
-				if err != nil {
-					log.Panic(err)
-				}
-				newModTime := remoteDiff.File.GetModTime().AsTime()
-				err = os.Chtimes(path, newModTime, newModTime)
-				if err != nil {
-					log.Panic(err)
-				}
-				dirty = true
-			}
-		}
-	}
+	// 			err = client.DownloadFile(context.Background(), path, reader, file)
+	// 			if err != nil {
+	// 				log.Panic(err)
+	// 			}
+	// 			newModTime := remoteDiff.File.GetModTime().AsTime()
+	// 			err = os.Chtimes(path, newModTime, newModTime)
+	// 			if err != nil {
+	// 				log.Panic(err)
+	// 			}
+	// 			dirty = true
+	// 		}
+	// 	}
+	// }
 
-	if dirty {
-		writeJamsyncFile(client.ProjectConfig())
-		log.Println("merge .jamdiff files to continue")
-		return
-	}
+	// if dirty {
+	// 	writeJamsyncFile(client.ProjectConfig())
+	// 	log.Println("merge .jamdiff files to continue")
+	// 	return
+	// }
 
 	err := applyFileListDiff(remoteToLocalDiff, client)
 	if err != nil {
@@ -476,7 +477,7 @@ func pushFileListDiff(fileMetadata *pb.FileMetadata, fileMetadataDiff *pb.FileMe
 		return err
 	}
 
-	err = client.CommitChange()
+	err = client.CommitChange("")
 	if err != nil {
 		return err
 	}
@@ -504,9 +505,12 @@ func applyFileListDiff(fileMetadataDiff *pb.FileMetadataDiff, client *jam.Client
 			}
 			defer file.Close()
 
-			fileContents, err := os.ReadFile(path)
-			if err != nil {
-				log.Panic(err)
+			fileContents := []byte{}
+			if _, err := os.Stat("/path/to/whatever"); !errors.Is(err, os.ErrNotExist) {
+				fileContents, err = os.ReadFile(path)
+				if err != nil {
+					log.Panic(err)
+				}
 			}
 
 			err = client.DownloadFile(ctx, path, bytes.NewReader(fileContents), file)
@@ -514,13 +518,13 @@ func applyFileListDiff(fileMetadataDiff *pb.FileMetadataDiff, client *jam.Client
 				log.Panic(err)
 			}
 
-			newModTime := fileMetadataDiff.GetDiffs()[path].File.GetModTime().AsTime()
-			err = os.Chtimes(path, newModTime, newModTime)
+			err = os.Rename(path+".jamtemp", path)
 			if err != nil {
 				log.Panic(err)
 			}
 
-			err = os.Rename(path+".jamtemp", path)
+			newModTime := fileMetadataDiff.GetDiffs()[path].File.GetModTime().AsTime()
+			err = os.Chtimes(path, newModTime, newModTime)
 			if err != nil {
 				log.Panic(err)
 			}
