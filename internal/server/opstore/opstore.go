@@ -6,14 +6,14 @@ import (
 )
 
 type LocalStore struct {
-	directory     string
-	openFileCache map[string]*os.File
+	directory string
+	//openFileCache map[string]*os.File
 }
 
 func NewLocalStore(directory string) LocalStore {
 	return LocalStore{
-		directory:     directory,
-		openFileCache: make(map[string]*os.File),
+		directory: directory,
+		//openFileCache: make(map[string]*os.File),
 	}
 }
 
@@ -25,14 +25,14 @@ func (s LocalStore) filePath(projectId uint64, ownerId string, changeId uint64, 
 }
 func (s LocalStore) Read(projectId uint64, ownerId string, changeId uint64, pathHash uint64, offset uint64, length uint64) (data []byte, err error) {
 	filePath := s.filePath(projectId, ownerId, changeId, pathHash)
-	currFile, cached := s.openFileCache[filePath]
-	if !cached {
-		currFile, err = os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			return nil, err
-		}
-		s.openFileCache[filePath] = currFile
+	//currFile, cached := s.openFileCache[filePath]
+	//if !cached {
+	currFile, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return nil, err
 	}
+	//	s.openFileCache[filePath] = currFile
+	//}
 	b := make([]byte, length)
 	_, err = currFile.ReadAt(b, int64(offset))
 	if err != nil {
@@ -46,14 +46,14 @@ func (s LocalStore) Write(projectId uint64, ownerId string, changeId uint64, pat
 		return 0, 0, err
 	}
 	filePath := s.filePath(projectId, ownerId, changeId, pathHash)
-	currFile, cached := s.openFileCache[filePath]
-	if !cached {
-		currFile, err = os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
-		if err != nil {
-			return 0, 0, err
-		}
-		s.openFileCache[filePath] = currFile
+	//currFile, cached := s.openFileCache[filePath]
+	//if !cached {
+	currFile, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644)
+	if err != nil {
+		return 0, 0, err
 	}
+	//	s.openFileCache[filePath] = currFile
+	//}
 	info, err := currFile.Stat()
 	if err != nil {
 		return 0, 0, err

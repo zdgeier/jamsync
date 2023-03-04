@@ -22,6 +22,9 @@ var redirectUrl = "http://localhost:8082/callback"
 
 // AuthorizeUser implements the PKCE OAuth2 flow.
 func AuthorizeUser() {
+	if jamenv.Env() == jamenv.Local {
+		return
+	}
 	// initialize the code verifier
 	var CodeVerifier, _ = cv.CreateCodeVerifier()
 

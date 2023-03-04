@@ -4,13 +4,16 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/fs"
 	"log"
+	_ "net/http/pprof"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 
 	"github.com/cespare/xxhash"
@@ -30,7 +33,18 @@ var (
 	built   string
 )
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
 	log.Println("version: " + version)
 	log.Println("built: " + built)
 	log.Println("env: " + jamenv.Env().String())
@@ -392,55 +406,150 @@ func writeJamsyncFile(config *pb.ProjectConfig) error {
 }
 
 func uploadNewProject(client *jam.Client) error {
+	fmt.Println("starting read")
 	fileMetadata := readLocalFileList()
+	//panic("test")
+	fmt.Println("done reading")
 	fileMetadataDiff, err := client.DiffLocalToRemote(context.Background(), fileMetadata)
 	if err != nil {
 		return err
 	}
+	fmt.Println("diff")
 	err = pushFileListDiff(fileMetadata, fileMetadataDiff, client)
 	if err != nil {
 		return err
 	}
+	fmt.Println("pushed diff")
 	return writeJamsyncFile(client.ProjectConfig())
 }
 
-func readLocalFileList() *pb.FileMetadata {
-	files := map[string]*pb.File{}
-	if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, _ error) error {
-		if shouldExclude(path) {
-			return nil
-		}
-		info, err := d.Info()
+type PathFile struct {
+	path string
+	file *pb.File
+}
+
+type PathInfo struct {
+	path  string
+	isDir bool
+}
+
+func worker(pathInfos <-chan PathInfo, results chan<- PathFile) {
+	for pathInfo := range pathInfos {
+		//fmt.Println("openign", path)
+		osFile, err := os.Open(pathInfo.path)
 		if err != nil {
-			return err
+			panic(err)
 		}
 
-		if d.IsDir() {
-			files[path] = &pb.File{
-				ModTime: timestamppb.New(info.ModTime()),
+		stat, err := osFile.Stat()
+		if err != nil {
+			panic(err)
+		}
+
+		var file *pb.File
+		if pathInfo.isDir {
+			file = &pb.File{
+				ModTime: timestamppb.New(stat.ModTime()),
 				Dir:     true,
 			}
 		} else {
-			data, err := os.ReadFile(path)
+			data, err := os.ReadFile(pathInfo.path)
 			if err != nil {
-				return err
+				panic(err)
 			}
 			h := xxhash.New()
 			h.Write(data)
 
-			files[path] = &pb.File{
-				ModTime: timestamppb.New(info.ModTime()),
+			file = &pb.File{
+				ModTime: timestamppb.New(stat.ModTime()),
 				Dir:     false,
 				Hash:    h.Sum64(),
 			}
 		}
+		osFile.Close()
+		results <- PathFile{pathInfo.path, file}
+	}
+}
+
+func readLocalFileList() *pb.FileMetadata {
+	numEntries := 0
+	fmt.Println("Walkin")
+	i := 0
+	if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, _ error) error {
+		if shouldExclude(path) {
+			return filepath.SkipDir
+		}
+		if i%10000 == 0 {
+			log.Println("Read ", i)
+		}
+		if i > 250000 {
+			return nil
+		}
+		numEntries += 1
+		i += 1
 		return nil
 	}); err != nil {
 		log.Println("WARN: could not walk directory tree", err)
 	}
 
+	fmt.Println("Walked ", numEntries, "entries")
+
+	paths := make(chan PathInfo, numEntries)
+	results := make(chan PathFile, numEntries)
+
+	i = 0
+	for w := 1; w <= 4000; w++ {
+		go worker(paths, results)
+	}
+
+	if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, _ error) error {
+		if i%10000 == 0 {
+			log.Println("Read ", i)
+		}
+		if i > 250000 {
+			return nil
+		}
+		if shouldExclude(path) {
+			return nil
+		}
+		paths <- PathInfo{path, d.IsDir()}
+		i += 1
+		return nil
+	}); err != nil {
+		log.Println("WARN: could not walk directory tree", err)
+	}
+	close(paths)
+
+	files := make(map[string]*pb.File, numEntries)
+	i = 0
+	for i := 0; i < numEntries; i += 1 {
+		if i%10000 == 0 {
+			log.Println("Read ", i)
+		}
+		i += 1
+		pathFile := <-results
+		files[pathFile.path] = pathFile.file
+	}
+
 	return &pb.FileMetadata{
 		Files: files,
+	}
+}
+
+func uploadFile(ctx context.Context, client *jam.Client, paths <-chan string, result chan<- error) {
+	for path := range paths {
+		file, err := os.OpenFile(path, os.O_RDONLY, 0755)
+		if err != nil {
+			result <- err
+			return
+		}
+		//log.Println("Uploading", path)
+		err = client.UploadFile(ctx, path, file)
+		if err != nil {
+			result <- err
+			return
+		}
+		result <- file.Close()
 	}
 }
 
@@ -452,20 +561,40 @@ func pushFileListDiff(fileMetadata *pb.FileMetadata, fileMetadataDiff *pb.FileMe
 		return err
 	}
 
-	for path, diff := range fileMetadataDiff.GetDiffs() {
+	fmt.Println("pushing")
+
+	numFiles := 0
+	for _, diff := range fileMetadataDiff.GetDiffs() {
 		if diff.GetType() != pb.FileMetadataDiff_NoOp && diff.GetType() != pb.FileMetadataDiff_Delete && !diff.GetFile().GetDir() {
-			file, err := os.OpenFile(path, os.O_RDONLY, 0755)
-			if err != nil {
-				return err
-			}
-			log.Println("Uploading", path)
-			err = client.UploadFile(ctx, path, file)
-			if err != nil {
-				return err
-			}
-			file.Close()
+			numFiles += 1
 		}
 	}
+	fmt.Println("GOT NUMFILES ", numFiles)
+
+	paths := make(chan string, numFiles)
+	results := make(chan error, numFiles)
+	for w := 1; w <= 20; w++ {
+		go uploadFile(ctx, client, paths, results)
+	}
+
+	for path, diff := range fileMetadataDiff.GetDiffs() {
+		if diff.GetType() != pb.FileMetadataDiff_NoOp && diff.GetType() != pb.FileMetadataDiff_Delete && !diff.GetFile().GetDir() {
+			paths <- path
+		}
+	}
+	close(paths)
+
+	for i := 0; i < numFiles; i += 1 {
+		if i%1000 == 0 {
+			log.Println("Uploaded ", i)
+		}
+		res := <-results
+		if res != nil {
+			panic(res)
+		}
+		i += 1
+	}
+
 	log.Println("Uploading file list...")
 
 	metadataBytes, err := proto.Marshal(fileMetadata)

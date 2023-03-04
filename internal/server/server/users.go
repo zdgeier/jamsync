@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/zdgeier/jamsync/gen/pb"
+	"github.com/zdgeier/jamsync/internal/jamenv"
 	"github.com/zdgeier/jamsync/internal/server/serverauth"
 )
 
@@ -24,6 +25,9 @@ func (s JamsyncServer) Ping(ctx context.Context, in *pb.PingRequest) (*pb.PingRe
 	id, err := serverauth.ParseIdFromCtx(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if jamenv.Env() == jamenv.Local {
+		return &pb.PingResponse{Username: id}, nil
 	}
 
 	username, err := s.db.Username(id)
