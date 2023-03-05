@@ -168,6 +168,20 @@ func main() {
 			writeJamsyncFile(client.ProjectConfig())
 		}
 
+		numEntries := 0
+		if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, _ error) error {
+			if shouldExclude(path) || path == "." {
+				return nil
+			}
+			numEntries += 1
+			if numEntries > 10000 {
+				log.Fatal("File watching disabled for projects over 10K files. Better support for this comming soon...")
+			}
+			return nil
+		}); err != nil {
+			log.Println("WARN: could not walk directory tree", err)
+		}
+
 		stream, err := apiClient.ChangeStream(context.Background(), &pb.ChangeStreamRequest{
 			ProjectId: client.ProjectConfig().GetProjectId(),
 		})
@@ -476,7 +490,7 @@ func readLocalFileList() *pb.FileMetadata {
 	numEntries := 0
 	i := 0
 	if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, _ error) error {
-		if shouldExclude(path) {
+		if shouldExclude(path) || path == "." {
 			return nil
 		}
 		if i%10000 == 0 {
@@ -503,7 +517,7 @@ func readLocalFileList() *pb.FileMetadata {
 		if i%10000 == 0 {
 			log.Println("Read ", i)
 		}
-		if shouldExclude(path) {
+		if shouldExclude(path) || path == "." {
 			return nil
 		}
 		paths <- PathInfo{path, d.IsDir()}

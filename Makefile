@@ -61,7 +61,7 @@ installclient:
 	go build -ldflags "-X main.built=`date -u +.%Y%m%d.%H%M%S` -X main.version=0.0.3" -o jam cmd/client/main.go && mv jam ~/bin/jam
 
 installclientremote:
-	wget https://jamsync.dev/public/jam_darwin_arm64.zip && unzip jam_darwin_arm64.zip && mv jam ~/bin/jam
+	rm -rf jam_darwin_arm64.zip && wget https://jamsync.dev/public/jam_darwin_arm64.zip && unzip jam_darwin_arm64.zip && mv jam ~/bin/jam && rm -rf jam_darwin_arm64.zip
 
 ssh:
 	ssh -i ~/jamsynckeypair.pem ec2-user@ssh.prod.jamsync.dev

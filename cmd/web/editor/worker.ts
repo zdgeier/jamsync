@@ -55,6 +55,9 @@ self.onmessage = async event => {
   } else if (data.type == "getDocument") {
     console.log("get")
     let url = `ws:/\/${data.host}/api/ws/committedchanges/${data.projectName}`;
+    if (data.protocol == "https:") {
+        url = `wss:/\/${data.host}/api/ws/committedchanges/${data.projectName}`;
+    }
     ws = new WebSocket(url);
     ws.onopen = async () => {
         let projectMetadataResp = await fetch(

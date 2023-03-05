@@ -73,6 +73,7 @@ function pullUpdates(
     })))
 }
 let host = window.location.host;
+let protocol = window.location.protocol;
 let splitPath = self.location.pathname.split("/");
 let projectName = splitPath[2];
 let currentPath = splitPath.slice(4).join("/");
@@ -80,7 +81,7 @@ let currentPath = splitPath.slice(4).join("/");
 function getDocument(
   connection: Connection
 ): Promise<{version: number, doc: Text}> {
-  return connection.request({type: "getDocument", host, projectName, currentPath}).then(data => ({
+  return connection.request({type: "getDocument", protocol, host, projectName, currentPath}).then(data => ({
     version: data.version,
     doc: Text.of(data.doc.split("\n"))
   }))
@@ -89,6 +90,9 @@ function getDocument(
 //!peerExtension
 
 let url = `ws:/\/${window.location.host}/api/ws/committedchanges/${projectName}`;
+if (window.location.protocol == "https:") {
+  url = `wss:/\/${window.location.host}/api/ws/committedchanges/${projectName}`;
+}
 let ws = new WebSocket(url);
 function peerExtension(startVersion: number, connection: Connection) {
   let plugin = ViewPlugin.fromClass(class {
