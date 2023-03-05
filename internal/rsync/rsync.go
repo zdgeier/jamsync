@@ -7,13 +7,17 @@
 //	Source: The final content.
 //	Target: The content to be made into final content.
 //	Signature: The sequence of hashes used to identify the content.
+//
+// Modified by Zachary Geier
+// Change Log:
+// - Changed to use xxh3 hash function
 package rsync
 
 import (
 	"bytes"
-	"crypto/md5"
-	"hash"
 	"io"
+
+	"github.com/zeebo/xxh3"
 )
 
 // If no BlockSize is specified in the RSync instance, this value is used.
@@ -70,13 +74,10 @@ type OperationWriter func(op Operation) error
 // A single RSync should not be used concurrently as it may contain
 // internal buffers and hash sums.
 type RSync struct {
-	BlockSize int
-	MaxDataOp int
-
-	// If this is nil an MD5 hash is used.
-	UniqueHasher hash.Hash
-
-	buffer []byte
+	BlockSize    int
+	MaxDataOp    int
+	UniqueHasher *xxh3.Hasher
+	buffer       []byte
 }
 
 // If the target length is known the number of hashes in the
@@ -98,7 +99,7 @@ func (r *RSync) CreateSignature(target io.Reader, sw SignatureWriter) error {
 		r.BlockSize = DefaultBlockSize
 	}
 	if r.UniqueHasher == nil {
-		r.UniqueHasher = md5.New()
+		r.UniqueHasher = xxh3.New()
 	}
 	var err error
 	var n int
@@ -278,7 +279,7 @@ func (r *RSync) CreateDelta(source io.Reader, signature []BlockHash, ops Operati
 		r.MaxDataOp = DefaultMaxDataOp
 	}
 	if r.UniqueHasher == nil {
-		r.UniqueHasher = md5.New()
+		r.UniqueHasher = xxh3.New()
 	}
 	minBufferSize := (r.BlockSize * 2) + (r.MaxDataOp)
 	if len(r.buffer) < minBufferSize {
@@ -463,7 +464,8 @@ func (r *RSync) CreateDelta(source io.Reader, signature []BlockHash, ops Operati
 func (r *RSync) uniqueHash(v []byte) []byte {
 	r.UniqueHasher.Reset()
 	r.UniqueHasher.Write(v)
-	return r.UniqueHasher.Sum(nil)
+	h := r.UniqueHasher.Sum128().Bytes()
+	return h[:]
 }
 
 // Searches for a given strong hash among all strong hashes in this bucket.

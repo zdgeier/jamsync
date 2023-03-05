@@ -6,9 +6,9 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/cespare/xxhash"
 	"github.com/zdgeier/jamsync/gen/pb"
 	"github.com/zdgeier/jamsync/internal/rsync"
+	"github.com/zeebo/xxh3"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
@@ -64,7 +64,7 @@ func (c *Client) UploadFile(ctx context.Context, filePath string, sourceReader i
 	}
 
 	opsOut := make(chan *rsync.Operation)
-	rsDelta := &rsync.RSync{UniqueHasher: xxhash.New()}
+	rsDelta := &rsync.RSync{UniqueHasher: xxh3.New()}
 	go func() {
 		var blockCt, blockRangeCt, dataCt, bytes int
 		defer close(opsOut)
@@ -143,13 +143,12 @@ func (c *Client) UpdateFile(ctx context.Context, path string, data []byte, updat
 		return err
 	}
 
-	h := xxhash.New()
-	h.Write(data)
+	hSum := xxh3.Hash128(data).Bytes()
 
 	newFile := &pb.File{
 		ModTime: timestamppb.Now(),
 		Dir:     false,
-		Hash:    h.Sum64(),
+		Hash:    hSum[:],
 	}
 
 	metadataReader := bytes.NewReader([]byte{})
@@ -219,6 +218,7 @@ func (c *Client) DiffLocalToRemote(ctx context.Context, fileMetadata *pb.FileMet
 	if err != nil {
 		return nil, err
 	}
+	//fmt.Println("222", fileMetadata, "12", remoteFileMetadata)
 
 	fileMetadataDiff := make(map[string]*pb.FileMetadataDiff_FileDiff, len(remoteFileMetadata.GetFiles()))
 	for remoteFilePath := range remoteFileMetadata.GetFiles() {
@@ -324,7 +324,7 @@ func pbOperationToRsync(op *pb.Operation) rsync.Operation {
 }
 
 func (c *Client) DownloadFile(ctx context.Context, filePath string, localReader io.ReadSeeker, localWriter io.Writer) error {
-	rs := rsync.RSync{UniqueHasher: xxhash.New()}
+	rs := rsync.RSync{}
 	blockHashes := make([]*pb.BlockHash, 0)
 	err := rs.CreateSignature(localReader, func(bl rsync.BlockHash) error {
 		blockHashes = append(blockHashes, &pb.BlockHash{
@@ -414,8 +414,7 @@ func (c *Client) BrowseProject(path string) (*pb.BrowseProjectResponse, error) {
 	}, err
 }
 
-func pathToHash(path string) uint64 {
-	h := xxhash.New()
-	h.Write([]byte(path))
-	return h.Sum64()
+func pathToHash(path string) []byte {
+	h := xxh3.Hash128([]byte(path)).Bytes()
+	return h[:]
 }

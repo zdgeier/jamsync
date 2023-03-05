@@ -20,10 +20,10 @@ func NewLocalStore(directory string) LocalStore {
 func (s LocalStore) changeDirectory(projectId uint64, ownerId string) string {
 	return fmt.Sprintf("%s/%s/%d/opdata", s.directory, ownerId, projectId)
 }
-func (s LocalStore) filePath(projectId uint64, ownerId string, changeId uint64, pathHash uint64) string {
-	return fmt.Sprintf("%s/%d.jb", s.changeDirectory(projectId, ownerId), pathHash)
+func (s LocalStore) filePath(projectId uint64, ownerId string, changeId uint64, pathHash []byte) string {
+	return fmt.Sprintf("%s/%02X.jb", s.changeDirectory(projectId, ownerId), pathHash)
 }
-func (s LocalStore) Read(projectId uint64, ownerId string, changeId uint64, pathHash uint64, offset uint64, length uint64) (data []byte, err error) {
+func (s LocalStore) Read(projectId uint64, ownerId string, changeId uint64, pathHash []byte, offset uint64, length uint64) (data []byte, err error) {
 	filePath := s.filePath(projectId, ownerId, changeId, pathHash)
 	//currFile, cached := s.openFileCache[filePath]
 	//if !cached {
@@ -40,7 +40,7 @@ func (s LocalStore) Read(projectId uint64, ownerId string, changeId uint64, path
 	}
 	return b, nil
 }
-func (s LocalStore) Write(projectId uint64, ownerId string, changeId uint64, pathHash uint64, data []byte) (offset uint64, length uint64, err error) {
+func (s LocalStore) Write(projectId uint64, ownerId string, changeId uint64, pathHash []byte, data []byte) (offset uint64, length uint64, err error) {
 	err = os.MkdirAll(s.changeDirectory(projectId, ownerId), os.ModePerm)
 	if err != nil {
 		return 0, 0, err

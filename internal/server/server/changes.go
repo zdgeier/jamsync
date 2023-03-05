@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 
-	"github.com/cespare/xxhash"
 	"github.com/zdgeier/jamsync/gen/pb"
 	"github.com/zdgeier/jamsync/internal/rsync"
 	"github.com/zdgeier/jamsync/internal/server/serverauth"
@@ -37,7 +36,8 @@ func (s JamsyncServer) WriteOperationStream(srv pb.JamsyncAPI_WriteOperationStre
 
 	projectOwner := ""
 	operationProject := uint64(0)
-	var projectId, changeId, pathHash uint64
+	var projectId, changeId uint64
+	var pathHash []byte
 	opLocs := make([]*pb.OperationLocations_OperationLocation, 0)
 	for {
 		in, err := srv.Recv()
@@ -107,7 +107,7 @@ func (s JamsyncServer) ReadBlockHashes(ctx context.Context, in *pb.ReadBlockHash
 		return nil, err
 	}
 
-	rs := rsync.RSync{UniqueHasher: xxhash.New()}
+	rs := rsync.RSync{}
 	sig := make([]*pb.BlockHash, 0)
 	err = rs.CreateSignature(targetBuffer, func(bl rsync.BlockHash) error {
 		sig = append(sig, &pb.BlockHash{
@@ -143,8 +143,8 @@ func pbOperationToRsync(op *pb.Operation) rsync.Operation {
 	}
 }
 
-func (s JamsyncServer) regenFile(projectId uint64, userId string, pathHash uint64, changeId uint64) (*bytes.Reader, error) {
-	rs := rsync.RSync{UniqueHasher: xxhash.New()}
+func (s JamsyncServer) regenFile(projectId uint64, userId string, pathHash []byte, changeId uint64) (*bytes.Reader, error) {
+	rs := rsync.RSync{}
 	targetBuffer := bytes.NewBuffer([]byte{})
 	result := new(bytes.Buffer)
 	for i := uint64(1); i <= changeId; i++ {
@@ -207,7 +207,7 @@ func (s JamsyncServer) ReadFile(in *pb.ReadFileRequest, srv pb.JamsyncAPI_ReadFi
 	}
 
 	opsOut := make(chan *rsync.Operation)
-	rsDelta := &rsync.RSync{UniqueHasher: xxhash.New()}
+	rsDelta := &rsync.RSync{}
 	go func() {
 		var blockCt, blockRangeCt, dataCt, bytes int
 		defer close(opsOut)

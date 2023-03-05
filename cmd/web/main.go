@@ -10,7 +10,15 @@ import (
 	"github.com/zdgeier/jamsync/internal/web/authenticator"
 )
 
+var (
+	version string
+	built   string
+)
+
 func main() {
+	log.Println("version: " + version)
+	log.Println("built: " + built)
+	log.Println("env: " + jamenv.Env().String())
 	auth, err := authenticator.New()
 	if err != nil {
 		log.Fatalf("Failed to initialize the authenticator: %v", err)

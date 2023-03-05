@@ -431,7 +431,7 @@ func TestGetFileListDiff(t *testing.T) {
 		Files: map[string]*pb.File{
 			"test.txt": {
 				ModTime: timestamppb.New(time.UnixMilli(100)),
-				Hash:    1234,
+				Hash:    []byte{1, 2, 3, 4},
 			},
 			"testdir": {
 				ModTime: timestamppb.New(time.UnixMilli(200)),
@@ -439,7 +439,7 @@ func TestGetFileListDiff(t *testing.T) {
 			},
 			"testdir/test2.txt": {
 				ModTime: timestamppb.New(time.UnixMilli(200)),
-				Hash:    123,
+				Hash:    []byte{1, 2, 3},
 			},
 		},
 	}
@@ -471,7 +471,7 @@ func TestGetFileListDiff(t *testing.T) {
 						File: &pb.File{
 							ModTime: timestamppb.New(time.UnixMilli(100)),
 							Dir:     false,
-							Hash:    1234,
+							Hash:    []byte{1, 2, 3, 4},
 						},
 					},
 					"testdir": {
@@ -486,7 +486,7 @@ func TestGetFileListDiff(t *testing.T) {
 						File: &pb.File{
 							ModTime: timestamppb.New(time.UnixMilli(200)),
 							Dir:     false,
-							Hash:    123,
+							Hash:    []byte{1, 2, 3},
 						},
 					},
 				},
@@ -523,7 +523,7 @@ func TestGetFileListDiff(t *testing.T) {
 					Files: map[string]*pb.File{
 						"test2.txt": {
 							ModTime: timestamppb.New(time.UnixMilli(100)),
-							Hash:    1234,
+							Hash:    []byte{1, 2, 3, 4},
 						},
 						"testdir": {
 							ModTime: timestamppb.New(time.UnixMilli(200)),
@@ -535,7 +535,7 @@ func TestGetFileListDiff(t *testing.T) {
 						},
 						"testdir/test2.txt": {
 							ModTime: timestamppb.New(time.UnixMilli(300)),
-							Hash:    12345,
+							Hash:    []byte{1, 2, 3, 4, 5},
 						},
 					},
 				},
@@ -551,7 +551,7 @@ func TestGetFileListDiff(t *testing.T) {
 						File: &pb.File{
 							ModTime: timestamppb.New(time.UnixMilli(100)),
 							Dir:     false,
-							Hash:    1234,
+							Hash:    []byte{1, 2, 3, 4},
 						},
 					},
 					"testdir": {
@@ -569,7 +569,7 @@ func TestGetFileListDiff(t *testing.T) {
 						File: &pb.File{
 							ModTime: timestamppb.New(time.UnixMilli(300)),
 							Dir:     false,
-							Hash:    12345,
+							Hash:    []byte{1, 2, 3, 4, 5},
 						},
 					},
 				},

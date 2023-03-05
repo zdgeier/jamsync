@@ -1,11 +1,9 @@
 module github.com/zdgeier/jamsync
 
-go 1.19
+go 1.18
 
 require (
 	github.com/auth0/go-jwt-middleware/v2 v2.1.0
-	github.com/cespare/xxhash v1.1.0
-	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/coreos/go-oidc/v3 v3.1.0
 	github.com/fsnotify/fsnotify v1.6.0
 	github.com/gin-contrib/sessions v0.0.3
@@ -18,6 +16,7 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/spf13/viper v1.14.0
 	github.com/stretchr/testify v1.8.1
+	github.com/zeebo/xxh3 v1.0.2
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
@@ -38,6 +37,7 @@ require (
 	github.com/gorilla/sessions v1.1.3 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
+	github.com/klauspost/cpuid/v2 v2.0.9 // indirect
 	github.com/leodido/go-urn v1.2.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect

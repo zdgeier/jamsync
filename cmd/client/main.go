@@ -16,13 +16,13 @@ import (
 	"runtime/pprof"
 	"strings"
 
-	"github.com/cespare/xxhash"
 	"github.com/fsnotify/fsnotify"
 	"github.com/zdgeier/jamsync/gen/pb"
 	"github.com/zdgeier/jamsync/internal/jamenv"
 	jam "github.com/zdgeier/jamsync/internal/server/client"
 	"github.com/zdgeier/jamsync/internal/server/clientauth"
 	"github.com/zdgeier/jamsync/internal/server/server"
+	"github.com/zeebo/xxh3"
 	"golang.org/x/oauth2"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -145,6 +145,7 @@ func main() {
 
 	// Get what has changed locally since last push
 	fileMetadata := readLocalFileList()
+	//fmt.Println("xXXX", fileMetadata, "12")
 	localToRemoteDiff, err := client.DiffLocalToRemote(context.Background(), fileMetadata)
 	if err != nil {
 		log.Panic(err)
@@ -159,6 +160,7 @@ func main() {
 
 	if client.ProjectConfig().CurrentChange == remoteConfig.CurrentChange {
 		if diffHasChanges(localToRemoteDiff) {
+			fmt.Println("here")
 			err = pushFileListDiff(fileMetadata, localToRemoteDiff, client)
 			if err != nil {
 				log.Panic(err)
@@ -409,7 +411,7 @@ func uploadNewProject(client *jam.Client) error {
 	fmt.Println("starting read")
 	fileMetadata := readLocalFileList()
 	//panic("test")
-	fmt.Println("done reading")
+	//fmt.Println("done reading", fileMetadata)
 	fileMetadataDiff, err := client.DiffLocalToRemote(context.Background(), fileMetadata)
 	if err != nil {
 		return err
@@ -455,15 +457,14 @@ func worker(pathInfos <-chan PathInfo, results chan<- PathFile) {
 		} else {
 			data, err := os.ReadFile(pathInfo.path)
 			if err != nil {
-				panic(err)
+				log.Println("Could not read ", pathInfo.path, ":", err)
 			}
-			h := xxhash.New()
-			h.Write(data)
+			b := xxh3.Hash128(data).Bytes()
 
 			file = &pb.File{
 				ModTime: timestamppb.New(stat.ModTime()),
 				Dir:     false,
-				Hash:    h.Sum64(),
+				Hash:    b[:],
 			}
 		}
 		osFile.Close()
@@ -473,17 +474,13 @@ func worker(pathInfos <-chan PathInfo, results chan<- PathFile) {
 
 func readLocalFileList() *pb.FileMetadata {
 	numEntries := 0
-	fmt.Println("Walkin")
 	i := 0
 	if err := filepath.WalkDir(".", func(path string, d fs.DirEntry, _ error) error {
 		if shouldExclude(path) {
-			return filepath.SkipDir
+			return nil
 		}
 		if i%10000 == 0 {
 			log.Println("Read ", i)
-		}
-		if i > 250000 {
-			return nil
 		}
 		numEntries += 1
 		i += 1
@@ -506,9 +503,6 @@ func readLocalFileList() *pb.FileMetadata {
 		if i%10000 == 0 {
 			log.Println("Read ", i)
 		}
-		if i > 250000 {
-			return nil
-		}
 		if shouldExclude(path) {
 			return nil
 		}
@@ -526,7 +520,6 @@ func readLocalFileList() *pb.FileMetadata {
 		if i%10000 == 0 {
 			log.Println("Read ", i)
 		}
-		i += 1
 		pathFile := <-results
 		files[pathFile.path] = pathFile.file
 	}
@@ -543,9 +536,10 @@ func uploadFile(ctx context.Context, client *jam.Client, paths <-chan string, re
 			result <- err
 			return
 		}
-		//log.Println("Uploading", path)
+		log.Println("Uploading", path)
 		err = client.UploadFile(ctx, path, file)
 		if err != nil {
+			log.Fatal(path, err)
 			result <- err
 			return
 		}
@@ -561,7 +555,7 @@ func pushFileListDiff(fileMetadata *pb.FileMetadata, fileMetadataDiff *pb.FileMe
 		return err
 	}
 
-	fmt.Println("pushing")
+	//fmt.Println("pushing", fileMetadataDiff.GetDiffs())
 
 	numFiles := 0
 	for _, diff := range fileMetadataDiff.GetDiffs() {
@@ -590,7 +584,7 @@ func pushFileListDiff(fileMetadata *pb.FileMetadata, fileMetadataDiff *pb.FileMe
 		}
 		res := <-results
 		if res != nil {
-			panic(res)
+			log.Fatal(err)
 		}
 		i += 1
 	}

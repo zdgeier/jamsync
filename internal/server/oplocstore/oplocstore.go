@@ -18,8 +18,8 @@ type LocalOpLocStore struct {
 func (s LocalOpLocStore) opLocDirectory(projectId uint64, ownerId string, changeId uint64) string {
 	return fmt.Sprintf("%s/%s/%d/oplocs/%d", s.directory, ownerId, projectId, changeId)
 }
-func (s LocalOpLocStore) filePath(projectId uint64, ownerId string, changeId uint64, pathHash uint64) string {
-	return fmt.Sprintf("%s/%d.locs", s.opLocDirectory(projectId, ownerId, changeId), pathHash)
+func (s LocalOpLocStore) filePath(projectId uint64, ownerId string, changeId uint64, pathHash []byte) string {
+	return fmt.Sprintf("%s/%02X.locs", s.opLocDirectory(projectId, ownerId, changeId), pathHash)
 }
 
 func NewLocalOpLocStore(directory string) LocalOpLocStore {
@@ -46,7 +46,7 @@ func (s LocalOpLocStore) InsertOperationLocations(opLocs *pb.OperationLocations)
 	currFile.Close()
 	return err
 }
-func (s LocalOpLocStore) ListOperationLocations(projectId uint64, ownerId string, pathHash uint64, changeId uint64) (opLocs *pb.OperationLocations, err error) {
+func (s LocalOpLocStore) ListOperationLocations(projectId uint64, ownerId string, pathHash []byte, changeId uint64) (opLocs *pb.OperationLocations, err error) {
 	filePath := s.filePath(projectId, ownerId, changeId, pathHash)
 
 	_, err = os.Stat(filePath)

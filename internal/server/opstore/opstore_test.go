@@ -12,7 +12,7 @@ func TestLocalStore(t *testing.T) {
 		projectId uint64
 		userId    string
 		changeId  uint64
-		pathHash  uint64
+		pathHash  []byte
 		data      []byte
 	}
 	type writeDataResult struct {
@@ -29,7 +29,7 @@ func TestLocalStore(t *testing.T) {
 				projectId: 1,
 				userId:    "test",
 				changeId:  1,
-				pathHash:  123,
+				pathHash:  []byte{1, 2, 3},
 				data:      []byte("this is a test"),
 			},
 			expectedWriteDataResult: writeDataResult{
@@ -42,7 +42,7 @@ func TestLocalStore(t *testing.T) {
 				projectId: 1,
 				userId:    "test",
 				changeId:  1,
-				pathHash:  123,
+				pathHash:  []byte{1, 2, 3},
 				data:      []byte("this is another test"),
 			},
 			expectedWriteDataResult: writeDataResult{

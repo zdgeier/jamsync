@@ -36,7 +36,7 @@ func TestOpLocStore(t *testing.T) {
 					ProjectId: 3,
 					OwnerId:   "testowner",
 					ChangeId:  4,
-					PathHash:  123,
+					PathHash:  []byte{1, 2, 3},
 					OpLocs: []*pb.OperationLocations_OperationLocation{
 						{
 							Offset: 10,
@@ -54,7 +54,7 @@ func TestOpLocStore(t *testing.T) {
 				ProjectId: 3,
 				OwnerId:   "testowner",
 				ChangeId:  4,
-				PathHash:  123,
+				PathHash:  []byte{1, 2, 3},
 				OpLocs: []*pb.OperationLocations_OperationLocation{
 					{
 						Offset: 10,

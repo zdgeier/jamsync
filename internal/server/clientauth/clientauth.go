@@ -286,6 +286,10 @@ func InitConfig() (string, error) {
 			log.Println("$HOME/.jamsyncauth.json could not be read correctly. Try deleting this file and retrying.")
 		}
 	}
+
+	if jamenv.Env() == jamenv.Local {
+		return "", nil
+	}
 	return viper.Get("AccessToken").(string), nil
 }
 

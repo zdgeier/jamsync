@@ -31,7 +31,7 @@ buildclients:
 
 # Run on server since ARM has some weirdness with cgo
 buildservers:
-	go build -o jamserver cmd/server/main.go && go build -o jamweb cmd/web/main.go
+	go build -ldflags "-X main.built=`date -u +.%Y%m%d.%H%M%S` -X main.version=0.0.3" -o jamserver cmd/server/main.go && go build -ldflags "-X main.built=`date -u +.%Y%m%d.%H%M%S` -X main.version=0.0.3"  -o jamweb cmd/web/main.go
 
 zipbuild:
 	zip -r jamsync-build.zip jamsync-build/
@@ -58,7 +58,10 @@ install:
 	go mod tidy && cd cmd/web/editor/ && npm install
 
 installclient:
-	go build -ldflags "-X main.built=`date -u +.%Y%m%d.%H%M%S` -X main.version=0.0.2" -o jam cmd/client/main.go && mv jam ~/bin/jam
+	go build -ldflags "-X main.built=`date -u +.%Y%m%d.%H%M%S` -X main.version=0.0.3" -o jam cmd/client/main.go && mv jam ~/bin/jam
+
+installclientremote:
+	wget https://jamsync.dev/public/jam_darwin_arm64.zip && unzip jam_darwin_arm64.zip && mv jam ~/bin/jam
 
 ssh:
 	ssh -i ~/jamsynckeypair.pem ec2-user@ssh.prod.jamsync.dev
