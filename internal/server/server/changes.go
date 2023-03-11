@@ -3,11 +3,14 @@ package server
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 
 	"github.com/zdgeier/jamsync/gen/pb"
+	"github.com/zdgeier/jamsync/internal/jamenv"
 	"github.com/zdgeier/jamsync/internal/rsync"
 	"github.com/zdgeier/jamsync/internal/server/serverauth"
+	"github.com/zeebo/xxh3"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -143,6 +146,23 @@ func pbOperationToRsync(op *pb.Operation) rsync.Operation {
 	}
 }
 
+func pathToHash(path string) []byte {
+	h := xxh3.Hash128([]byte(path)).Bytes()
+	return h[:]
+}
+
+func (s JamsyncServer) ListOperationLocations(ctx context.Context, in *pb.ListOperationLocationsRequest) (*pb.OperationLocations, error) {
+	if jamenv.Env() != jamenv.Local {
+		return nil, errors.New("only allowed when running locally")
+	}
+	operationLocations, err := s.oplocstore.ListOperationLocations(in.GetProjectId(), "test@jamsync.dev", pathToHash(in.GetPath()), in.GetChangeId())
+	if err != nil {
+		return nil, err
+	}
+
+	return operationLocations, nil
+}
+
 func (s JamsyncServer) regenFile(projectId uint64, userId string, pathHash []byte, changeId uint64) (*bytes.Reader, error) {
 	rs := rsync.RSync{}
 	targetBuffer := bytes.NewBuffer([]byte{})
@@ -195,10 +215,7 @@ func pbBlockHashesToRsync(pbBlockHashes []*pb.BlockHash) []rsync.BlockHash {
 func (s JamsyncServer) ReadFile(in *pb.ReadFileRequest, srv pb.JamsyncAPI_ReadFileServer) error {
 	userId, err := serverauth.ParseIdFromCtx(srv.Context())
 	if err != nil {
-		// jamsync
-		if in.GetProjectId() != 1 {
-			return err
-		}
+		return err
 	}
 
 	sourceBuffer, err := s.regenFile(in.GetProjectId(), userId, in.GetPathHash(), in.GetChangeId())

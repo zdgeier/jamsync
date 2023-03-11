@@ -63,6 +63,9 @@ installclient:
 installclientremote:
 	rm -rf jam_darwin_arm64.zip && wget https://jamsync.dev/public/jam_darwin_arm64.zip && unzip jam_darwin_arm64.zip && mv jam ~/bin/jam && rm -rf jam_darwin_arm64.zip
 
+grpcui:
+	grpcui -insecure 0.0.0.0:14357
+
 ssh:
 	ssh -i ~/jamsynckeypair.pem ec2-user@ssh.prod.jamsync.dev
 
