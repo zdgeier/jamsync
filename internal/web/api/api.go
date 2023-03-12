@@ -3,7 +3,9 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -140,11 +142,6 @@ func PutFileHandler() gin.HandlerFunc {
 
 		client := client.NewClient(tempClient, config.GetProjectId(), config.GetCurrentChange())
 
-		type req struct {
-			Doc     string        `json:"doc"`
-			Updates []interface{} `json:"updates"`
-		}
-
 		data, err := io.ReadAll(ctx.Request.Body)
 		if err != nil {
 			ctx.String(http.StatusInternalServerError, err.Error())
@@ -152,21 +149,7 @@ func PutFileHandler() gin.HandlerFunc {
 		}
 		ctx.Request.Body.Close()
 
-		var parsedBody req
-		err = json.Unmarshal(data, &parsedBody)
-		if err != nil {
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		// TODO: Do this better, we shouldnt unmarshal and then marshal again here
-		updateBytes, err := json.Marshal(parsedBody.Updates)
-		if err != nil {
-			ctx.String(http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		err = client.UpdateFile(ctx, ctx.Param("path")[1:], []byte(parsedBody.Doc), string(updateBytes))
+		err = client.UpdateFile(ctx, ctx.Param("path")[1:], data)
 		if err != nil {
 			ctx.String(http.StatusInternalServerError, err.Error())
 			return
@@ -183,8 +166,8 @@ func PutFileHandler() gin.HandlerFunc {
 }
 
 var wsupgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  4096,
+	WriteBufferSize: 4096,
 }
 
 func CommitChangeWSHandler() gin.HandlerFunc {
@@ -238,4 +221,72 @@ func CommitChangeWSHandler() gin.HandlerFunc {
 		}
 	}
 
+}
+
+func EditorChangeWSHandler() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		fmt.Println("test")
+		accessToken := sessions.Default(ctx).Get("access_token").(string)
+		tempClient, closer, err := server.Connect(&oauth2.Token{AccessToken: accessToken})
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		defer closer()
+
+		config, err := tempClient.GetProjectConfig(ctx, &pb.GetProjectConfigRequest{
+			ProjectName: ctx.Param("projectName"),
+		})
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		conn, err := wsupgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+		if err != nil {
+			ctx.String(http.StatusInternalServerError, err.Error())
+			return
+		}
+		defer conn.Close()
+
+		fmt.Println("here")
+		editorStream, err := tempClient.EditorStream(ctx)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		defer editorStream.CloseSend()
+
+		editorStream.Send(&pb.EditorStreamMessage{ProjectId: config.GetProjectId()})
+
+		go func() {
+			for {
+				_, data, err := conn.ReadMessage()
+				if err != nil {
+					log.Println(err)
+					break
+				}
+				editorStream.Send(&pb.EditorStreamMessage{
+					ProjectId:  config.ProjectId,
+					UpdateData: data,
+				})
+			}
+		}()
+
+		for {
+			fmt.Println("wating")
+			recv, err := editorStream.Recv()
+			if err == io.EOF {
+				fmt.Println("out", recv)
+				break
+			}
+			if err != nil {
+				fmt.Println("err", err)
+				log.Println(err)
+				break
+			}
+			fmt.Println("RECV", recv)
+
+			conn.WriteMessage(websocket.TextMessage, recv.UpdateData)
+		}
+	}
 }

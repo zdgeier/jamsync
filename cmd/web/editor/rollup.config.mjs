@@ -8,14 +8,4 @@ export default [{
     format: "iife"
   },
   plugins: [nodeResolve(), typescript()]
-},
-{
-  input: "./worker.ts",
-  output: {
-    file: "./worker.bundle.js",
-    format: "iife"
-  },
-  plugins: [nodeResolve(), typescript()]
-}
-
-]
+}]

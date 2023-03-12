@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
+	"log"
 
 	"github.com/zdgeier/jamsync/gen/pb"
 	"github.com/zdgeier/jamsync/internal/jamenv"
 	"github.com/zdgeier/jamsync/internal/rsync"
+	"github.com/zdgeier/jamsync/internal/server/editorhub"
 	"github.com/zdgeier/jamsync/internal/server/serverauth"
 	"github.com/zeebo/xxh3"
 	"google.golang.org/grpc/codes"
@@ -179,19 +182,19 @@ func (s JamsyncServer) regenFile(projectId uint64, userId string, pathHash []byt
 		for _, loc := range operationLocations.GetOpLocs() {
 			b, err := s.opstore.Read(projectId, userId, operationLocations.ChangeId, pathHash, loc.GetOffset(), loc.GetLength())
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 
 			op := new(pb.Operation)
 			err = proto.Unmarshal(b, op)
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
 			ops = append(ops, pbOperationToRsync(op))
 		}
 		err = rs.ApplyDeltaBatch(result, bytes.NewReader(targetBuffer.Bytes()), ops)
 		if err != nil {
-			panic(err)
+			log.Fatal(err)
 		}
 		targetBuffer.Reset()
 		targetBuffer.Write(result.Bytes())
@@ -292,7 +295,6 @@ func (s JamsyncServer) CommitChange(ctx context.Context, in *pb.CommitChangeRequ
 	s.hub.Broadcast(&pb.ChangeStreamMessage{
 		ProjectId: in.GetProjectId(),
 		UserId:    userId,
-		Updates:   in.GetUpdates(),
 	})
 
 	return &pb.CommitChangeResponse{}, nil
@@ -337,4 +339,39 @@ func (s JamsyncServer) ChangeStream(in *pb.ChangeStreamRequest, srv pb.JamsyncAP
 	}
 
 	return nil
+}
+
+func (s JamsyncServer) EditorStream(stream pb.JamsyncAPI_EditorStreamServer) error {
+	userId, err := serverauth.ParseIdFromCtx(stream.Context())
+	if err != nil {
+		return err
+	}
+
+	var client *editorhub.Client
+	firstMsg := true
+	for {
+		in, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+
+		fmt.Println("GOT", in)
+
+		if firstMsg {
+			client = s.editorhub.Register(in.ProjectId, userId)
+			go func() {
+				for editorStreamMessage := range client.Send {
+					fmt.Println("SENDING", editorStreamMessage)
+					err = stream.Send(editorStreamMessage)
+					if err != nil {
+						panic(err)
+					}
+				}
+			}()
+			firstMsg = false
+		} else {
+			fmt.Println("BROADCASTING", in)
+			s.editorhub.Broadcast(in)
+		}
+	}
 }

@@ -39,11 +39,10 @@ func (c *Client) CreateChange() error {
 	return err
 }
 
-func (c *Client) CommitChange(updates string) error {
+func (c *Client) CommitChange() error {
 	_, err := c.api.CommitChange(context.Background(), &pb.CommitChangeRequest{
 		ProjectId: c.projectId,
 		ChangeId:  c.changeId,
-		Updates:   updates,
 	})
 	if err != nil {
 		return err
@@ -137,7 +136,7 @@ func (c *Client) UploadFile(ctx context.Context, filePath string, sourceReader i
 	return err
 }
 
-func (c *Client) UpdateFile(ctx context.Context, path string, data []byte, updates string) error {
+func (c *Client) UpdateFile(ctx context.Context, path string, data []byte) error {
 	err := c.CreateChange()
 	if err != nil {
 		return err
@@ -182,7 +181,7 @@ func (c *Client) UpdateFile(ctx context.Context, path string, data []byte, updat
 		return err
 	}
 
-	err = c.CommitChange(updates)
+	err = c.CommitChange()
 	if err != nil {
 		return err
 	}

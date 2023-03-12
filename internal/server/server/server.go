@@ -12,6 +12,7 @@ import (
 	"github.com/zdgeier/jamsync/internal/jamenv"
 	"github.com/zdgeier/jamsync/internal/server/changestore"
 	"github.com/zdgeier/jamsync/internal/server/db"
+	"github.com/zdgeier/jamsync/internal/server/editorhub"
 	"github.com/zdgeier/jamsync/internal/server/hub"
 	"github.com/zdgeier/jamsync/internal/server/oplocstore"
 	"github.com/zdgeier/jamsync/internal/server/opstore"
@@ -35,6 +36,7 @@ type JamsyncServer struct {
 	oplocstore  oplocstore.LocalOpLocStore
 	changestore changestore.LocalChangeStore
 	hub         hub.Hub
+	editorhub   editorhub.EditorHub
 	pb.UnimplementedJamsyncAPIServer
 }
 
@@ -45,6 +47,7 @@ func New() (closer func(), err error) {
 		oplocstore:  oplocstore.NewLocalOpLocStore("jb"),
 		changestore: changestore.NewLocalChangeStore(),
 		hub:         *hub.NewHub(),
+		editorhub:   *editorhub.NewHub(),
 	}
 
 	var cert tls.Certificate
@@ -77,6 +80,7 @@ func New() (closer func(), err error) {
 	}()
 
 	go jamsyncServer.hub.Run()
+	go jamsyncServer.editorhub.Run()
 
 	return func() { server.Stop() }, nil
 }

@@ -11,6 +11,7 @@ service JamsyncAPI {
     rpc ReadBlockHashes(ReadBlockHashesRequest) returns (ReadBlockHashesResponse);
     rpc ReadFile(ReadFileRequest) returns (stream Operation);
     rpc ChangeStream(ChangeStreamRequest) returns (stream ChangeStreamMessage);
+    rpc EditorStream(stream EditorStreamMessage) returns (stream EditorStreamMessage);
 
     rpc AddProject(AddProjectRequest) returns (AddProjectResponse);
     rpc ListUserProjects(ListUserProjectsRequest) returns (ListUserProjectsResponse);
@@ -29,7 +30,11 @@ message ChangeStreamRequest{
 message ChangeStreamMessage{
     uint64 project_id = 1;
     string userId = 2;
-    string updates = 3;
+}
+
+message EditorStreamMessage{
+    uint64 project_id = 1;
+    bytes update_data = 3;
 }
 
 message WriteOperationStreamResponse {}

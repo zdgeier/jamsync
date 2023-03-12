@@ -423,6 +423,16 @@
         /* End lite-youtube-embed usage */
         .cm-editor.cm-focused { outline: 2px solid var(--bright-pink)}
         .cm-editor .cm-content { font-family: 'Fira Code', Monaco, Consolas, Ubuntu Mono, monospace; }
+
+        ::-webkit-scrollbar {
+            height: 12px;
+            width: 12px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            padding: 4px;
+            background-color: var(--bright-pink);
+        }
     </style>
     {{if $.customScript}}
         <script async type="module" src="{{$.customScript}}"></script>

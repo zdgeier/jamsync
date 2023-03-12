@@ -108,6 +108,7 @@ func New(auth *authenticator.Authenticator) http.Handler {
 	router.GET("/api/userprojects", api.UserProjectsHandler())
 	router.GET("/api/committedchanges/:projectName", api.ListCommittedChanges())
 	router.GET("/api/ws/committedchanges/:projectName", api.CommitChangeWSHandler())
+	router.GET("/api/ws/editorchanges/:projectName", api.EditorChangeWSHandler())
 	router.GET("/api/projects/:projectName", api.ProjectBrowseHandler())
 	router.GET("/api/projects/:projectName/files/*path", api.ProjectBrowseHandler())
 	router.PUT("/api/projects/:projectName/file/*path", api.PutFileHandler())

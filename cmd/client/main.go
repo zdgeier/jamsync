@@ -614,7 +614,7 @@ func pushFileListDiff(fileMetadata *pb.FileMetadata, fileMetadataDiff *pb.FileMe
 		return err
 	}
 
-	err = client.CommitChange("")
+	err = client.CommitChange()
 	if err != nil {
 		return err
 	}
